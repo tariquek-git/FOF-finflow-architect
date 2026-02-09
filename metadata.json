@@ -1,0 +1,5 @@
+{
+  "name": "FinFlow Architect",
+  "description": "A professional-grade Flow of Funds diagramming tool for fintech architects. Models banking nodes, payment rails (ACH, Wire, RTP), and settlement logic with AI-assisted drafting.",
+  "requestFramePermissions": []
+}
