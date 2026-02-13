@@ -209,6 +209,10 @@ const TopBar: React.FC<TopBarProps> = ({
                 isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'
               }`}
             >
+              <span className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                Primary Actions
+              </span>
+
               <button
                 onClick={onRestoreRecovery}
                 data-testid="toolbar-restore"
@@ -314,7 +318,7 @@ const TopBar: React.FC<TopBarProps> = ({
             type="button"
             onClick={onOpenHelp}
             aria-label="Open quick start help"
-            className={`tap-target shrink-0 rounded-md border px-2.5 py-2 text-[11px] font-semibold transition ${
+            className={`tap-target relative z-10 shrink-0 rounded-md border px-2.5 py-2 text-[11px] font-semibold transition ${
               isDarkMode
                 ? 'border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-700'
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
