@@ -143,12 +143,12 @@ const DiagramEdge = React.memo(
     const endAngle = Math.atan2(shiftedEnd.y - shiftedStart.y, shiftedEnd.x - shiftedStart.x) * (180 / Math.PI);
 
     return (
-      <g className="group cursor-pointer" onClick={(e) => { e.stopPropagation(); onSelect(edge.id); }}>
+      <g className="group cursor-pointer transition-opacity duration-150" onClick={(e) => { e.stopPropagation(); onSelect(edge.id); }}>
         <path d={pathD} stroke="transparent" strokeWidth="16" fill="none" />
         <path
           d={pathD}
           stroke={strokeColor}
-          strokeWidth={isSelected ? 4 : edge.thickness || 2}
+          strokeWidth={isSelected ? 3.6 : edge.thickness || 2}
           strokeDasharray={strokeDash}
           fill="none"
           className="transition-all duration-200"
@@ -186,9 +186,9 @@ const DiagramEdge = React.memo(
         >
           <div className="flex flex-col items-center justify-center">
             <div
-              className={`rounded-md border px-2 py-0.5 text-[8px] font-bold uppercase tracking-tight whitespace-nowrap shadow ${
+              className={`rounded-md border px-2 py-0.5 text-[8px] font-bold uppercase tracking-tight whitespace-nowrap shadow-sm ${
                 isDarkMode
-                  ? 'border-slate-700 bg-slate-900/95 text-slate-200'
+                  ? 'border-slate-600 bg-slate-900/95 text-slate-100'
                   : 'border-slate-300 bg-white/95 text-slate-700'
               }`}
             >
@@ -246,12 +246,12 @@ const DiagramNode = React.memo(
 
     return (
       <div
-        className={`group absolute flex flex-col items-center justify-center rounded-xl border shadow-sm transition-all ${
+        className={`group absolute flex flex-col items-center justify-center rounded-xl border shadow-sm transition-all duration-150 ${
           isSelected
-            ? 'scale-[1.02] ring-2 ring-blue-500 shadow-xl'
+            ? 'scale-[1.02] border-blue-500 ring-2 ring-blue-400/70 shadow-lg'
             : isDarkMode
-              ? 'border-slate-700'
-              : 'border-slate-300'
+              ? 'border-slate-700 hover:border-slate-500'
+              : 'border-slate-300 hover:border-slate-400'
         } ${connectHighlight ? 'ring-2 ring-blue-300' : ''}`}
         style={{
           left: node.position.x,
@@ -268,7 +268,7 @@ const DiagramNode = React.memo(
           <div
             className={`mb-1 flex h-8 w-8 items-center justify-center rounded-md border ${
               isDarkNode
-                ? 'border-white/20 bg-white/10'
+                ? 'border-white/25 bg-white/12'
                 : isDarkMode
                   ? 'border-slate-700 bg-black/20'
                   : 'border-slate-200 bg-slate-50'
@@ -281,7 +281,7 @@ const DiagramNode = React.memo(
             </span>
           </div>
           <span className={`px-2 text-center text-xs font-semibold leading-tight tracking-tight ${textColor}`}>{node.label}</span>
-          {node.accountType && <span className="mt-0.5 text-[7px] font-bold uppercase opacity-50">{node.accountType}</span>}
+          {node.accountType && <span className="mt-0.5 text-[7px] font-bold uppercase opacity-65">{node.accountType}</span>}
         </div>
 
         {showPorts &&

@@ -1,0 +1,9 @@
+{
+  "date": "2026-02-13",
+  "command": "npm run test:qa",
+  "framework": "playwright",
+  "passed": 24,
+  "failed": 0,
+  "duration_seconds": 19.9,
+  "status": "pass"
+}

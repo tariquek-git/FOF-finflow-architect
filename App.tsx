@@ -1393,14 +1393,14 @@ const App: React.FC = () => {
   return (
       <div className={`finflow-app-shell flex h-screen flex-col overflow-hidden ${isDarkMode ? 'dark text-slate-100' : 'text-slate-900'}`}>
         <header
-          className={`surface-ring z-40 mx-2 mt-2 flex shrink-0 flex-col gap-3 rounded-lg border px-3 py-2 md:mx-3 md:flex-row md:items-center md:justify-between ${
+          className={`ui-panel glass-panel z-40 mx-2 mt-2 flex shrink-0 flex-col gap-3 px-3 py-2 md:mx-3 md:flex-row md:items-center md:justify-between ${
             isDarkMode
-              ? 'border-slate-700 bg-slate-800/95'
-              : 'border-slate-300 bg-white/95'
+              ? 'bg-slate-900/90'
+              : 'bg-white/92'
           }`}
         >
           <div className="flex items-center gap-2 md:gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-lg font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 text-lg font-bold text-white shadow-sm">
               F
             </div>
             <div>
@@ -1477,10 +1477,10 @@ const App: React.FC = () => {
                 <input
                   type="text"
                   placeholder={isAILoading ? 'Drafting flow...' : 'Describe a flow to generate...'}
-                  className={`h-10 w-full rounded-full border pl-10 pr-28 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500/20 ${
+                  className={`ui-input h-10 w-full rounded-full pl-10 pr-28 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500/20 ${
                     isDarkMode
-                      ? 'border-slate-700 bg-slate-900'
-                      : 'border-slate-300 bg-white'
+                      ? 'bg-slate-900'
+                      : 'bg-white'
                   }`}
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
@@ -1491,7 +1491,7 @@ const App: React.FC = () => {
                   onClick={handleGenerateFlow}
                   disabled={!canGenerateFlow}
                   onMouseEnter={prefetchAIModule}
-                  className="absolute right-1.5 top-1.5 h-7 rounded-full bg-blue-600 px-4 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="absolute right-1.5 top-1.5 h-7 rounded-full bg-gradient-to-b from-blue-600 to-blue-700 px-4 text-[11px] font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {isAILoading ? 'Generating...' : 'Generate'}
                 </button>
@@ -1535,7 +1535,9 @@ const App: React.FC = () => {
               {isInspectorOpen ? 'Hide Inspect' : 'Inspect'}
             </button>
 
-            <div
+            <div className="shrink-0 space-y-1">
+              <div className="ui-section-title px-1">History</div>
+              <div
               className={`shrink-0 flex items-center rounded-md border p-1 ${
                 isDarkMode
                   ? 'border-slate-700 bg-slate-900'
@@ -1560,6 +1562,7 @@ const App: React.FC = () => {
               >
                 <RotateCw className="h-4 w-4" />
               </button>
+            </div>
             </div>
 
             <button
@@ -1651,7 +1654,7 @@ const App: React.FC = () => {
                   data-testid="toolbar-export-json"
                   onClick={handleExportDiagram}
                   title="Export current canvas as FinFlow JSON"
-                  className="tap-target shrink-0 flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:text-white"
+                  className="tap-target shrink-0 flex items-center gap-2 rounded-md bg-gradient-to-b from-blue-600 to-blue-700 px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110 dark:from-blue-500 dark:to-blue-600 dark:text-white"
                 >
                   <Download className="h-4 w-4" />
                   <span>Export JSON</span>
@@ -1677,10 +1680,10 @@ const App: React.FC = () => {
               key={toast.id}
               data-testid="toast-message"
               role={toast.tone === 'error' ? 'alert' : 'status'}
-              className={`pointer-events-auto rounded-md border px-3 py-2 text-sm shadow-lg ${
+              className={`pointer-events-auto rounded-lg border px-3 py-2 text-sm shadow-lg ${
                 toast.tone === 'success'
                   ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                  : toast.tone === 'warning'
+                : toast.tone === 'warning'
                     ? 'border-amber-300 bg-amber-50 text-amber-800'
                     : toast.tone === 'error'
                       ? 'border-rose-300 bg-rose-50 text-rose-800'
@@ -1714,7 +1717,7 @@ const App: React.FC = () => {
             } ${
               isDarkMode
                 ? 'border-slate-700 bg-slate-900'
-                : 'border-slate-300 bg-white'
+                : 'border-slate-200 bg-white'
             }`}
           >
             <Sidebar
@@ -1740,10 +1743,10 @@ const App: React.FC = () => {
           </div>
 
           <div
-            className={`relative ${isMobileViewport ? 'mx-0' : 'mx-2'} flex-1 overflow-hidden rounded-lg border ${
+            className={`relative ${isMobileViewport ? 'mx-0' : 'mx-2'} flex-1 overflow-hidden rounded-xl border ${
               isDarkMode
                 ? 'border-slate-700 bg-slate-900'
-                : 'border-slate-300 bg-white'
+                : 'border-slate-200 bg-white'
             }`}
             data-testid="canvas-dropzone"
             ref={containerRef}
@@ -1853,11 +1856,11 @@ const App: React.FC = () => {
               <div className="flex flex-col items-center gap-2">
                 {isLayoutPanelOpen && (
                   <div
-                    className={`surface-ring w-full max-w-4xl rounded-lg border p-3 ${
-                      isDarkMode
-                        ? 'border-slate-700 bg-slate-800/95'
-                        : 'border-slate-300 bg-white'
-                    }`}
+                  className={`surface-ring w-full max-w-4xl rounded-xl border p-3 ${
+                    isDarkMode
+                      ? 'border-slate-700 bg-slate-800/95'
+                      : 'border-slate-200 bg-white'
+                  }`}
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <div>
@@ -1947,10 +1950,10 @@ const App: React.FC = () => {
                 )}
 
                 <div
-                  className={`surface-ring w-full rounded-lg border px-3 py-2 ${
+                  className={`surface-ring w-full rounded-xl border px-3 py-2 ${
                     isDarkMode
                       ? 'border-slate-700 bg-slate-800/95'
-                      : 'border-slate-300 bg-white'
+                      : 'border-slate-200 bg-white'
                   }`}
                 >
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
@@ -2271,7 +2274,7 @@ const App: React.FC = () => {
             } ${
               isDarkMode
                 ? 'border-slate-700 bg-slate-800/95'
-                : 'border-slate-300 bg-white'
+                : 'border-slate-200 bg-white'
             }`}
           >
             {isInspectorOpen && (

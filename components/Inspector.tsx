@@ -69,42 +69,47 @@ const edgeSchema = z.object({
 type NodeFormValues = z.infer<typeof nodeSchema>;
 type EdgeFormValues = z.infer<typeof edgeSchema>;
 
+const FIELD_HELPERS: Record<string, string> = {
+  direction: 'Use Push/Pull/Settlement to describe how value or messages move.',
+  rail: 'Select the operating network or rail for this connection.',
+  timing: 'Capture settlement cadence or SLA window for this flow.'
+};
+
 const Section: React.FC<{ title: string; icon: React.ReactNode; children?: React.ReactNode }> = ({
   title,
   icon,
   children
 }) => (
-  <div className="mb-6 animate-in fade-in slide-in-from-right-1 duration-200">
-    <div className="mb-3 flex items-center gap-2 border-b px-1 pb-1.5 dark:border-slate-700">
+  <div className="mb-5 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 animate-in fade-in slide-in-from-right-1 duration-200">
+    <div className="mb-3 flex items-center gap-2 border-b border-slate-200 px-1 pb-1.5 dark:border-slate-700">
       <div className="text-blue-600 dark:text-blue-300">{icon}</div>
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-        {title}
-      </h3>
+      <h3 className="ui-section-title">{title}</h3>
     </div>
     <div className="space-y-3 px-1">{children}</div>
   </div>
 );
 
-const Field: React.FC<{ label: string; children?: React.ReactNode }> = ({ label, children }) => (
+const Field: React.FC<{ label: string; helper?: string; children?: React.ReactNode }> = ({ label, helper, children }) => (
   <div className="flex flex-col gap-1">
-    <label className="ml-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+    <label className="ml-0.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-500 dark:text-slate-400">
       {label}
     </label>
     {children}
+    {helper && <span className="ml-0.5 text-[10px] text-slate-500 dark:text-slate-400">{helper}</span>}
   </div>
 );
 
 const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
   <input
     {...props}
-    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+    className="ui-input h-9 w-full px-3 text-xs font-medium outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
   />
 );
 
 const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> = (props) => (
   <select
     {...props}
-    className="w-full cursor-pointer appearance-none rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+    className="ui-input h-9 w-full cursor-pointer appearance-none px-3 text-xs font-medium outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
   >
     {props.children}
   </select>
@@ -286,7 +291,7 @@ const Inspector: React.FC<InspectorProps> = ({
           : 'bg-white'
       }`}
     >
-      <div className={`flex items-center justify-between border-b px-4 py-4 ${isDarkMode ? 'border-slate-700' : 'border-slate-300'}`}>
+      <div className={`sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 backdrop-blur ${isDarkMode ? 'border-slate-700 bg-slate-900/95' : 'border-slate-200 bg-white/95'}`}>
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-blue-500" />
           <h2 className="text-xs font-semibold uppercase tracking-[0.14em] dark:text-slate-200">
@@ -307,7 +312,11 @@ const Inspector: React.FC<InspectorProps> = ({
               onClick={() => setDetailLevel('advanced')}
             />
           </div>
-          <button onClick={onClose} className="rounded-md p-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-slate-700">
+          <button
+            onClick={onClose}
+            className="rounded-md border border-slate-300 p-1.5 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700"
+            aria-label="Close inspector"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -363,7 +372,7 @@ const Inspector: React.FC<InspectorProps> = ({
             <Field label="Entity Notes">
               <textarea
                 {...nodeForm.register('description')}
-                className="h-24 w-full resize-none rounded-md border border-slate-300 bg-white p-3 text-xs outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                className="ui-input h-24 w-full resize-none p-3 text-xs outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 placeholder="Optional notes for this entity..."
               />
             </Field>
@@ -376,7 +385,7 @@ const Inspector: React.FC<InspectorProps> = ({
               <Field label="Technical Description">
                 <Input {...edgeForm.register('label')} />
               </Field>
-              <Field label="Infrastructure Rail">
+              <Field label="Infrastructure Rail" helper={FIELD_HELPERS.rail}>
                 <Select {...edgeForm.register('rail')}>
                   <option value="">Generic Path</option>
                   {Object.values(PaymentRail)
@@ -388,7 +397,7 @@ const Inspector: React.FC<InspectorProps> = ({
                     ))}
                 </Select>
               </Field>
-              <Field label="Accounting Direction">
+              <Field label="Accounting Direction" helper={FIELD_HELPERS.direction}>
                 <Select {...edgeForm.register('direction')}>
                   {Object.values(FlowDirection).map((direction) => (
                     <option key={direction} value={direction}>
@@ -397,7 +406,7 @@ const Inspector: React.FC<InspectorProps> = ({
                   ))}
                 </Select>
               </Field>
-              <Field label="SLA / Timing">
+              <Field label="SLA / Timing" helper={FIELD_HELPERS.timing}>
                 <Select {...edgeForm.register('timing')}>
                   <option value="">Undetermined</option>
                   {Object.values(TimingType).map((timing) => (
@@ -486,7 +495,7 @@ const Inspector: React.FC<InspectorProps> = ({
               <Field label="Architect Notes">
                 <textarea
                   {...edgeForm.register('description')}
-                  className="h-24 w-full resize-none rounded-md border border-slate-300 bg-white p-3 text-xs outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  className="ui-input h-24 w-full resize-none p-3 text-xs outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   placeholder="Explain cut-offs, retries, dependencies..."
                 />
               </Field>

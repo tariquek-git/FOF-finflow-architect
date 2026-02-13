@@ -98,10 +98,10 @@ const Sidebar = React.memo<SidebarProps>(({ onAddNode, isDarkMode }) => {
       draggable
       onDragStart={(e) => onDragStartShape(e, type)}
       onClick={() => onAddNode(type)}
-      className={`group flex aspect-square cursor-grab flex-col items-center justify-center rounded-md border p-2 text-center transition-all active:cursor-grabbing ${
+      className={`group flex aspect-square cursor-grab flex-col items-center justify-center rounded-lg border p-2 text-center transition-all duration-150 active:cursor-grabbing ${
         isDarkMode
-          ? 'border-slate-700 bg-slate-900 hover:border-blue-700 hover:bg-slate-800'
-          : 'border-slate-300 bg-white hover:border-blue-300 hover:bg-slate-50'
+          ? 'border-slate-700 bg-slate-900 hover:-translate-y-0.5 hover:border-blue-500 hover:bg-slate-800'
+          : 'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/40'
       }`}
       title={`Drag ${type} to canvas`}
     >
@@ -109,7 +109,7 @@ const Sidebar = React.memo<SidebarProps>(({ onAddNode, isDarkMode }) => {
         className={`mb-1.5 flex h-9 w-9 items-center justify-center rounded-md border ${
           isDarkMode
             ? 'border-slate-700 bg-slate-800 text-slate-200'
-            : 'border-slate-300 bg-white text-slate-700'
+            : 'border-slate-200 bg-slate-50 text-slate-700'
         }`}
       >
         {ENTITY_ICONS[type]}
@@ -128,18 +128,16 @@ const Sidebar = React.memo<SidebarProps>(({ onAddNode, isDarkMode }) => {
     <div className={`flex h-full flex-col ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
       <div
         className={`space-y-3 border-b px-4 py-4 ${
-          isDarkMode ? 'border-slate-700' : 'border-slate-300'
+          isDarkMode ? 'border-slate-700' : 'border-slate-200'
         }`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Grid className="h-4 w-4 text-blue-500" />
-            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-              Component Library
-            </span>
+            <span className="ui-section-title">Component Library</span>
           </div>
           <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
               isDarkMode ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-600'
             }`}
           >
@@ -153,10 +151,8 @@ const Sidebar = React.memo<SidebarProps>(({ onAddNode, isDarkMode }) => {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search blocks..."
-            className={`h-8 w-full rounded-md border pl-8 pr-2 text-xs outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
-              isDarkMode
-                ? 'border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500'
-                : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'
+            className={`ui-input h-9 w-full pl-8 pr-2 text-xs outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
+              isDarkMode ? 'placeholder:text-slate-500' : 'placeholder:text-slate-400'
             }`}
           />
         </div>
@@ -165,10 +161,10 @@ const Sidebar = React.memo<SidebarProps>(({ onAddNode, isDarkMode }) => {
       <div className="flex-1 overflow-y-auto p-3">
         {sections.length === 0 ? (
           <div
-            className={`rounded-md border px-3 py-4 text-center text-xs ${
+            className={`rounded-lg border px-3 py-4 text-center text-xs ${
               isDarkMode
                 ? 'border-slate-700 bg-slate-900 text-slate-400'
-                : 'border-slate-300 bg-white text-slate-500'
+                : 'border-slate-200 bg-white text-slate-500'
             }`}
           >
             No matching blocks.
@@ -178,8 +174,8 @@ const Sidebar = React.memo<SidebarProps>(({ onAddNode, isDarkMode }) => {
             {sections.map((section) => (
               <div
                 key={section.key}
-                className={`overflow-hidden rounded-md border ${
-                  isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'
+                className={`overflow-hidden rounded-lg border transition-colors ${
+                  isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
                 }`}
               >
                 <button
@@ -202,7 +198,7 @@ const Sidebar = React.memo<SidebarProps>(({ onAddNode, isDarkMode }) => {
                     className={`grid grid-cols-3 gap-1.5 border-t p-2 ${
                       isDarkMode
                         ? 'border-slate-700 bg-slate-950/40'
-                        : 'border-slate-200 bg-slate-50'
+                        : 'border-slate-200 bg-slate-50/70'
                     }`}
                   >
                     {section.filteredTypes.map(renderShapeButton)}
