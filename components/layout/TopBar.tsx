@@ -13,7 +13,6 @@ import {
   Sun,
   Upload
 } from 'lucide-react';
-import type { GridMode } from '../../types';
 import IconButton from '../ui/IconButton';
 
 type TopBarProps = {
@@ -27,9 +26,6 @@ type TopBarProps = {
   storageWarning: string | null;
   isSidebarOpen: boolean;
   isInspectorOpen: boolean;
-  showSwimlanes: boolean;
-  snapToGrid: boolean;
-  gridMode: GridMode;
   onToggleSidebar: () => void;
   onToggleInspector: () => void;
   onToggleTheme: () => void;
@@ -44,9 +40,6 @@ type TopBarProps = {
   onExportDiagram: () => void;
   onExportPng: () => void;
   onExportPdf: () => void;
-  onToggleSwimlanes: () => void;
-  onToggleSnapToGrid: () => void;
-  onCycleGridMode: () => void;
   centerSlot?: React.ReactNode;
 };
 
@@ -61,9 +54,6 @@ const TopBar: React.FC<TopBarProps> = ({
   storageWarning,
   isSidebarOpen,
   isInspectorOpen,
-  showSwimlanes,
-  snapToGrid,
-  gridMode,
   onToggleSidebar,
   onToggleInspector,
   onToggleTheme,
@@ -78,9 +68,6 @@ const TopBar: React.FC<TopBarProps> = ({
   onExportDiagram,
   onExportPng,
   onExportPdf,
-  onToggleSwimlanes,
-  onToggleSnapToGrid,
-  onCycleGridMode,
   centerSlot
 }) => {
   return (
@@ -165,59 +152,19 @@ const TopBar: React.FC<TopBarProps> = ({
           </div>
 
           <div className="shrink-0 space-y-1">
-            <div className="ui-section-title px-1">View</div>
-            <div
-              className={`flex items-center gap-1 rounded-md border p-1 ${
-                isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'
-              }`}
-            >
-              <button
-                type="button"
-                onClick={onCycleGridMode}
-                aria-pressed={gridMode !== 'none'}
-                className={`status-chip ${gridMode !== 'none' ? 'is-active' : ''}`}
-                title="Toggle grid mode"
-              >
-                Grid:{gridMode}
-              </button>
-              <button
-                type="button"
-                onClick={onToggleSwimlanes}
-                aria-pressed={showSwimlanes}
-                className={`status-chip ${showSwimlanes ? 'is-active' : ''}`}
-                title="Toggle swimlanes"
-              >
-                Swimlanes
-              </button>
-              <button
-                type="button"
-                onClick={onToggleSnapToGrid}
-                aria-pressed={snapToGrid}
-                className={`status-chip ${snapToGrid ? 'is-active' : ''}`}
-                title="Toggle snap to grid"
-              >
-                Snap
-              </button>
-            </div>
-          </div>
-
-          <div className="shrink-0 space-y-1">
-            <div className="ui-section-title px-1">File</div>
+            <div className="ui-section-title px-1">Primary Actions</div>
             <div
               data-testid="primary-actions-strip"
-              className={`flex flex-wrap items-center gap-1 rounded-md border p-1 ${
+              className={`flex flex-wrap items-center gap-1 rounded-md border p-1.5 ${
                 isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'
               }`}
             >
-              <span className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                Primary Actions
-              </span>
-
+              <span className="sr-only">Primary Actions</span>
               <button
                 onClick={onRestoreRecovery}
                 data-testid="toolbar-restore"
                 title="Restore backup"
-                className={`tap-target inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                className={`tap-target inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${
                   isDarkMode
                     ? hasRecoverySnapshot
                       ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
@@ -235,7 +182,7 @@ const TopBar: React.FC<TopBarProps> = ({
                 onClick={onResetCanvas}
                 data-testid="toolbar-reset-canvas"
                 title="New / Reset canvas"
-                className={`tap-target inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                className={`tap-target inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${
                   isDarkMode
                     ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
                     : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
@@ -249,7 +196,7 @@ const TopBar: React.FC<TopBarProps> = ({
                 data-testid="toolbar-import-json"
                 onClick={onImportDiagram}
                 title="Import JSON"
-                className={`tap-target inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                className={`tap-target inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${
                   isDarkMode
                     ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
                     : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
@@ -263,7 +210,7 @@ const TopBar: React.FC<TopBarProps> = ({
                 data-testid="toolbar-export-json"
                 onClick={onExportDiagram}
                 title="Export JSON"
-                className="tap-target inline-flex items-center gap-1.5 rounded-md bg-gradient-to-b from-blue-600 to-blue-700 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:brightness-110 dark:from-blue-500 dark:to-blue-600"
+                className="tap-target inline-flex items-center gap-1.5 rounded-md bg-gradient-to-b from-blue-600 to-blue-700 px-2 py-1.5 text-[11px] font-semibold text-white transition hover:brightness-110 dark:from-blue-500 dark:to-blue-600"
               >
                 <Download className="h-3.5 w-3.5" />
                 <span>Export JSON</span>
@@ -271,7 +218,7 @@ const TopBar: React.FC<TopBarProps> = ({
 
               <details className="relative">
                 <summary
-                  className={`tap-target inline-flex cursor-pointer list-none items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                  className={`tap-target inline-flex cursor-pointer list-none items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${
                     isDarkMode
                       ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
                       : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
@@ -318,7 +265,7 @@ const TopBar: React.FC<TopBarProps> = ({
             type="button"
             onClick={onOpenHelp}
             aria-label="Open quick start help"
-            className={`tap-target relative z-10 shrink-0 rounded-md border px-2.5 py-2 text-[11px] font-semibold transition ${
+            className={`tap-target shrink-0 rounded-md border px-2.5 py-2 text-[11px] font-semibold transition ${
               isDarkMode
                 ? 'border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-700'
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'

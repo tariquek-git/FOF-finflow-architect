@@ -17,9 +17,9 @@ type DiagramNodeCardProps = {
   onPortClick: (event: React.MouseEvent, id: string, portIdx: number) => void;
 };
 
-const PORT_HIT_SIZE = 22;
+const PORT_HIT_SIZE = 26;
 const PORT_HALF = PORT_HIT_SIZE / 2;
-const PORT_DOT_SIZE = 9;
+const PORT_DOT_SIZE = 10;
 
 const getBadge = (node: Node): string | null => {
   if (node.accountType === AccountType.FBO) return 'FBO';
@@ -192,7 +192,7 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
         connectState === 'source'
           ? 'scale-[1.02] border-emerald-500 ring-2 ring-emerald-300/85 shadow-xl'
           : isSelected
-            ? 'scale-[1.02] border-blue-500 ring-2 ring-blue-500/85 shadow-xl'
+            ? 'scale-[1.02] border-blue-600 ring-2 ring-blue-500 shadow-xl'
             : connectState === 'candidate'
               ? 'border-sky-400 ring-2 ring-sky-300/80'
               : 'hover:-translate-y-0.5 hover:shadow-[0_10px_26px_rgba(15,23,42,0.12)]'

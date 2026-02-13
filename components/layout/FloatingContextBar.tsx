@@ -62,14 +62,20 @@ const FloatingContextBar: React.FC<FloatingContextBarProps> = ({
   onToggleMidArrow
 }) => {
   const isConnectMode = activeTool === 'draw';
-  const style = { left: '50%', bottom: '5.15rem', transform: 'translateX(-50%)' };
-
   const showArrangeControls = selectedNodeCount >= 2;
+
+  const style = anchor
+    ? {
+        left: `${anchor.x}px`,
+        top: `${Math.max(56, anchor.y - 6)}px`,
+        transform: 'translate(-50%, -100%)'
+      }
+    : { left: '50%', bottom: '5.15rem', transform: 'translateX(-50%)' };
 
   return (
     <div
       className={`pointer-events-auto absolute z-30 flex max-w-[calc(100%-1rem)] flex-col gap-1 rounded-xl border px-2 py-1 shadow-lg transition-opacity ${
-        isConnectMode ? 'opacity-75' : 'opacity-100'
+        isConnectMode ? 'opacity-80' : 'opacity-100'
       } ${
         isDarkMode
           ? 'border-slate-700 bg-slate-900/96 text-slate-200'
@@ -78,7 +84,7 @@ const FloatingContextBar: React.FC<FloatingContextBarProps> = ({
       style={style}
     >
       <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-        <div className="hidden items-center gap-1 md:flex">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => onSetActiveTool('select')}
@@ -124,48 +130,50 @@ const FloatingContextBar: React.FC<FloatingContextBarProps> = ({
           >
             Connect Mode
           </span>
-        ) : null}
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onAutoConnectEdge}
+              title="Auto-connect edge"
+              aria-label="Auto-connect edge"
+              className="toolbar-chip"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden sm:inline">Auto Edge</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={onAutoConnectEdge}
-          title="Auto-connect edge"
-          aria-label="Auto-connect edge"
-          className="toolbar-chip"
-        >
-          <Sparkles className="h-4 w-4" />
-          <span className="hidden sm:inline">Auto Edge</span>
-        </button>
+            <InsertConnectorButton onClick={onAddConnector} onNativeDragStart={onConnectorNativeDragStart} />
 
-        <InsertConnectorButton onClick={onAddConnector} onNativeDragStart={onConnectorNativeDragStart} />
+            <button
+              type="button"
+              onClick={onDelete}
+              title="Delete selected"
+              aria-label="Delete selected item"
+              className="toolbar-chip"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={onDelete}
-          title="Delete selected"
-          aria-label="Delete selected item"
-          className="toolbar-chip"
-        >
-          <Trash2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Delete</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onDuplicateSelection}
-          disabled={selectedNodeCount === 0}
-          title="Duplicate selected nodes"
-          aria-label="Duplicate selected nodes"
-          className="toolbar-chip"
-        >
-          <span className="hidden sm:inline">Duplicate</span>
-          <span className="sm:hidden">Dup</span>
-        </button>
+            <button
+              type="button"
+              onClick={onDuplicateSelection}
+              disabled={selectedNodeCount === 0}
+              title="Duplicate selected nodes"
+              aria-label="Duplicate selected nodes"
+              className="toolbar-chip"
+            >
+              <span className="hidden sm:inline">Duplicate</span>
+              <span className="sm:hidden">Dup</span>
+            </button>
+          </>
+        )}
       </div>
 
-      {!isConnectMode || hasSelectedEdge || showArrangeControls ? (
+      {!isConnectMode || hasSelectedEdge ? (
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-200/70 pt-1 dark:border-slate-700/80">
-          {showArrangeControls ? (
+          {!isConnectMode && showArrangeControls ? (
             <>
               <button
                 type="button"

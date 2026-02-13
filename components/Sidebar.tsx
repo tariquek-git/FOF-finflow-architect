@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { EntityType, LaneGroupingMode, OverlayMode } from '../types';
+import { EntityType, OverlayMode } from '../types';
 import { ENTITY_ICONS } from '../constants';
 import {
   ChevronDown,
   ChevronRight,
   Grid,
-  Layers,
   Search,
   ShieldAlert,
   Wallet
@@ -14,13 +13,9 @@ import {
 interface SidebarProps {
   onAddNode: (type: EntityType) => void;
   isDarkMode: boolean;
-  showSwimlanes: boolean;
-  onToggleSwimlanes: () => void;
   overlayMode: OverlayMode;
   onToggleRiskOverlay: () => void;
   onToggleLedgerOverlay: () => void;
-  laneGroupingMode: LaneGroupingMode;
-  onSetLaneGroupingMode: (mode: LaneGroupingMode) => void;
 }
 
 type LibrarySection = {
@@ -76,13 +71,9 @@ const getShortLabel = (type: EntityType) =>
 const Sidebar = React.memo<SidebarProps>(({
   onAddNode,
   isDarkMode,
-  showSwimlanes,
-  onToggleSwimlanes,
   overlayMode,
   onToggleRiskOverlay,
-  onToggleLedgerOverlay,
-  laneGroupingMode,
-  onSetLaneGroupingMode
+  onToggleLedgerOverlay
 }) => {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     institutions: true,
@@ -186,19 +177,13 @@ const Sidebar = React.memo<SidebarProps>(({
             isDarkMode ? 'border-slate-700/80 bg-slate-900/80' : 'border-slate-200/80 bg-white/90'
           }`}
         >
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-400">
-            View Controls
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-400">
+            Overlay Layers
           </div>
+          <p className="mb-2 text-[10px] text-slate-500 dark:text-slate-400">
+            Grid, snap, ports, minimap, and lane controls live in the Inspector Canvas tab.
+          </p>
           <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={onToggleSwimlanes}
-              aria-pressed={showSwimlanes}
-              className={`status-chip ${showSwimlanes ? 'is-active' : ''}`}
-              title="Toggle swimlanes"
-            >
-              <Layers className="h-3.5 w-3.5" /> Swimlanes
-            </button>
             <button
               type="button"
               data-testid="toolbar-toggle-risk-overlay"
@@ -220,27 +205,6 @@ const Sidebar = React.memo<SidebarProps>(({
               <Wallet className="h-3.5 w-3.5" /> Ledger
             </button>
           </div>
-
-          <div className="mt-2">
-            <label
-              htmlFor="sidebar-lane-grouping"
-              className="ml-0.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-500 dark:text-slate-400"
-            >
-              Lane Grouping
-            </label>
-            <select
-              id="sidebar-lane-grouping"
-              value={laneGroupingMode}
-              onChange={(event) => onSetLaneGroupingMode(event.target.value as LaneGroupingMode)}
-              className="ui-input mt-1 h-8 w-full cursor-pointer px-2 text-xs"
-            >
-              <option value="manual">Manual</option>
-              <option value="entity">Entity Type</option>
-              <option value="regulatory">Regulatory Domain</option>
-              <option value="geography">Geography</option>
-              <option value="ledger">Ledger Layer</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -261,13 +225,13 @@ const Sidebar = React.memo<SidebarProps>(({
               <div
                 key={section.key}
                 className={`overflow-hidden rounded-lg border transition-colors ${
-                  isDarkMode ? 'border-slate-700/80 bg-slate-900/80' : 'border-slate-200/80 bg-white/90'
+                  isDarkMode ? 'border-slate-800/70 bg-slate-900/70' : 'border-slate-200/70 bg-white/95'
                 }`}
               >
                 <button
                   onClick={() => toggleSection(section.key)}
                   className={`flex w-full items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] ${
-                    isDarkMode ? 'text-slate-300 hover:bg-slate-800/70' : 'text-slate-600 hover:bg-slate-50/70'
+                    isDarkMode ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-600 hover:bg-slate-50/60'
                   }`}
                 >
                   <span className="flex items-center gap-2">

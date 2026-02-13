@@ -67,6 +67,9 @@ const CanvasInspectorSections: React.FC<CanvasInspectorSectionsProps> = ({
   return (
     <>
       <PanelSection title="Canvas Utilities" icon={<Settings2 className="h-3.5 w-3.5" />}>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+          Primary canvas controls live here to keep the toolbar and canvas uncluttered.
+        </p>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"

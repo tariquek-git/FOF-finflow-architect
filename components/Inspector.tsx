@@ -555,6 +555,9 @@ const Inspector: React.FC<InspectorProps> = ({
           <div className="flex h-full min-h-56 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 p-6 text-center opacity-70 dark:border-slate-700">
             <MousePointer2 className="mb-3 h-10 w-10 text-slate-400" />
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Select a node to edit</p>
+            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              Node details stay off-canvas so the workspace remains clean.
+            </p>
           </div>
         ) : null}
 
@@ -574,6 +577,9 @@ const Inspector: React.FC<InspectorProps> = ({
           <div className="flex h-full min-h-56 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 p-6 text-center opacity-70 dark:border-slate-700">
             <MousePointer2 className="mb-3 h-10 w-10 text-slate-400" />
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Select an edge to edit</p>
+            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              Rail, settlement, and risk fields are managed in this panel.
+            </p>
           </div>
         ) : null}
 

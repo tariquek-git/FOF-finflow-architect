@@ -1,14 +1,13 @@
-# Local Release Handoff (v0.2.1)
+# Local Release Handoff (v0.2.2)
 
 ## Release Identity
-- Release branch of record: `codex/uiux-v021-interaction-clarity`
+- Release branch of record: `codex/uiux-v022-mvp-polish`
 - Local remote source of truth: `/Users/tarique/Documents/banking-diagram-mvp-origin.git`
-- Release tag of record: `v0.2.1`
-- Release commit: `6e70bc8f58642f6850347c07467848cebb0e3b3b`
-- Release type: Local-first interaction clarity + de-clutter hardening
+- Release tag of record: `v0.2.2`
+- Release type: Local-first MVP UI de-clutter + public-ready polish
 
 ## Engineering Rules
-- Karpathy guidelines are now enforced at repo level via:
+- Karpathy guidelines remain enforced at repo level via:
   - `.cursor/rules/karpathy-guidelines.md`
 - QA/review checks for each change set:
   - assumptions are explicit,
@@ -36,11 +35,12 @@ All commands passed with exit code `0`:
 ## Deliverables
 - QA summary docs:
   - `docs/mvp-qa-report.md`
-  - `docs/CHANGELOG_v0.2.1-local.md`
-- Review artifacts:
-  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.1_handoff_20260213-095535.tar.gz`
-  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.1_handoff_20260213-095535.zip`
+  - `docs/CHANGELOG_v0.2.2-local.md`
+- Review artifacts (generated during release cut):
+  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.2_handoff_<timestamp>.tar.gz`
+  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.2_handoff_<timestamp>.zip`
 
 ## Notes
-- This release hardens interaction reliability and trims command-surface clutter.
+- View controls are centralized in Inspector `Canvas` tab to reduce duplicated command surfaces.
+- Topbar and bottom bar now separate global actions from status-only controls.
 - Existing QA-critical labels and test IDs remain preserved.

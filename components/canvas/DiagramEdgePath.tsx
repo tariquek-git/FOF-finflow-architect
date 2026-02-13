@@ -91,7 +91,7 @@ const DiagramEdgePathComponent: React.FC<DiagramEdgePathProps> = ({
       <path
         d={pathD}
         stroke={strokeColor}
-        strokeWidth={isSelected ? 4.2 : edge.thickness || 2}
+        strokeWidth={isSelected ? 4.8 : edge.thickness || 2}
         strokeDasharray={strokeDash}
         fill="none"
         className="transition-[stroke-width,opacity] duration-150"
@@ -100,9 +100,9 @@ const DiagramEdgePathComponent: React.FC<DiagramEdgePathProps> = ({
       <path
         d={pathD}
         stroke={strokeColor}
-        strokeWidth={isSelected ? 9 : 6}
+        strokeWidth={isSelected ? 10 : 6}
         fill="none"
-        opacity={isSelected ? 0.32 : 0}
+        opacity={isSelected ? 0.4 : 0}
         className="pointer-events-none transition-opacity duration-150 group-hover:opacity-20"
       />
 

@@ -44,7 +44,10 @@ const BottomStatusBar: React.FC<BottomStatusBarProps> = ({
   }`;
 
   return (
-    <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 w-[min(98%,1200px)] -translate-x-1/2">
+    <div
+      data-testid="bottom-status-bar"
+      className="pointer-events-none absolute bottom-2 left-1/2 z-30 w-[min(98%,1200px)] -translate-x-1/2"
+    >
       <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-1.5 text-[11px]">
         <div
           className={`pointer-events-auto flex items-center gap-1.5 rounded-lg border px-1.5 py-1 shadow-sm ${
@@ -80,7 +83,7 @@ const BottomStatusBar: React.FC<BottomStatusBarProps> = ({
         </div>
 
         <div
-          className={`pointer-events-auto hidden items-center gap-1.5 rounded-lg border px-1.5 py-1 shadow-sm md:flex ${
+          className={`pointer-events-auto flex items-center gap-1.5 rounded-lg border px-1.5 py-1 shadow-sm ${
             isDarkMode
               ? 'border-slate-700 bg-slate-900/92 text-slate-200'
               : 'border-slate-300 bg-white/96 text-slate-700'

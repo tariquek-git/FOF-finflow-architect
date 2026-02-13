@@ -1436,10 +1436,16 @@ const App: React.FC = () => {
       const rect = containerRef.current.getBoundingClientRect();
       const horizontalPadding = 120;
       const verticalPadding = 18;
-      return {
-        x: Math.min(rect.width - horizontalPadding, Math.max(horizontalPadding, x)),
-        y: Math.min(rect.height - verticalPadding, Math.max(verticalPadding, y))
-      };
+      let clampedX = Math.min(rect.width - horizontalPadding, Math.max(horizontalPadding, x));
+      let clampedY = Math.min(rect.height - verticalPadding, Math.max(verticalPadding, y));
+
+      // Avoid overlap with the minimap region in the bottom-right corner.
+      if (showMinimap && clampedX > rect.width - 240 && clampedY > rect.height - 200) {
+        clampedX = rect.width - 260;
+        clampedY = rect.height - 210;
+      }
+
+      return { x: clampedX, y: clampedY };
     };
 
     if (selectedNodeIds.length > 0) {
@@ -1485,7 +1491,7 @@ const App: React.FC = () => {
     }
 
     return null;
-  }, [edges, nodes, selectedEdgeId, selectedNodeIds, viewport.x, viewport.y, viewport.zoom]);
+  }, [edges, nodes, selectedEdgeId, selectedNodeIds, showMinimap, viewport.x, viewport.y, viewport.zoom]);
 
   const screenToWorld = useCallback(
     (clientX: number, clientY: number) => {
@@ -1778,11 +1784,11 @@ const App: React.FC = () => {
           ) : (
             <div
               data-testid="ai-disabled-badge"
-              className={`rounded-full border px-3 py-2 text-xs font-semibold ${
+              className={`pointer-events-none inline-flex rounded-full border px-2.5 py-1.5 text-[11px] font-semibold ${
                 isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-slate-300 bg-white text-slate-600'
               }`}
             >
-              AI Generate is disabled for public MVP.
+              AI disabled for MVP
             </div>
           )
         }
@@ -1852,13 +1858,9 @@ const App: React.FC = () => {
               }
             }}
             isDarkMode={isDarkMode}
-            showSwimlanes={showSwimlanes}
-            onToggleSwimlanes={handleToggleSwimlanes}
             overlayMode={overlayMode}
             onToggleRiskOverlay={handleToggleRiskOverlay}
             onToggleLedgerOverlay={handleToggleLedgerOverlay}
-            laneGroupingMode={laneGroupingMode}
-            onSetLaneGroupingMode={setLaneGroupingMode}
           />
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
