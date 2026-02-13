@@ -47,6 +47,12 @@ const GRID_EXTENT = 12000;
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 2.5;
 
+type PendingConnection = { nodeId: string; portIdx: number };
+type PendingConnectionResolution = {
+  nextPending: PendingConnection | null;
+  edgeToCreate?: { sourceId: string; targetId: string; sourcePortIdx: number; targetPortIdx: number };
+};
+
 const isEditableTarget = (target: EventTarget | null): target is HTMLElement => {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
@@ -77,6 +83,61 @@ const getPortPosition = (node: Node, portIdx: number) => {
   if (portIdx === 1) return { x: x + w, y: cy };
   if (portIdx === 2) return { x: cx, y: y + h };
   return { x, y: cy };
+};
+
+const getClosestPortToPoint = (node: Node, point: Position) => {
+  let bestIdx = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let idx = 0; idx < 4; idx += 1) {
+    const port = getPortPosition(node, idx);
+    const dx = port.x - point.x;
+    const dy = port.y - point.y;
+    const distance = dx * dx + dy * dy;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIdx = idx;
+    }
+  }
+  return bestIdx;
+};
+
+const resolvePendingConnectionFromNodeClick = (
+  nodes: Node[],
+  pendingConnection: PendingConnection | null,
+  nodeId: string,
+  clickWorld: Position
+): PendingConnectionResolution => {
+  const clickedNode = nodes.find((candidate) => candidate.id === nodeId);
+  if (!clickedNode) return { nextPending: null };
+
+  if (!pendingConnection) {
+    return {
+      nextPending: { nodeId, portIdx: getClosestPortToPoint(clickedNode, clickWorld) }
+    };
+  }
+
+  if (pendingConnection.nodeId === nodeId) {
+    return { nextPending: null };
+  }
+
+  const sourceNode = nodes.find((candidate) => candidate.id === pendingConnection.nodeId);
+  if (!sourceNode) {
+    return { nextPending: null };
+  }
+
+  const sourcePortIdx = pendingConnection.portIdx;
+  const sourcePortPosition = getPortPosition(sourceNode, sourcePortIdx);
+  const targetPortIdx = getClosestPortToPoint(clickedNode, sourcePortPosition);
+
+  return {
+    nextPending: null,
+    edgeToCreate: {
+      sourceId: sourceNode.id,
+      targetId: clickedNode.id,
+      sourcePortIdx,
+      targetPortIdx
+    }
+  };
 };
 
 const getNodeDimensions = (node: Node) => {
@@ -218,7 +279,7 @@ const DiagramNode = React.memo(
     isSelected: boolean;
     isDarkMode: boolean;
     onMouseDown: (e: React.MouseEvent, id: string) => void;
-    onClick: (e: React.MouseEvent) => void;
+    onClick: (e: React.MouseEvent, id: string) => void;
     onPortClick: (e: React.MouseEvent, id: string, idx: number) => void;
     showPorts: boolean;
     connectHighlight: boolean;
@@ -261,8 +322,10 @@ const DiagramNode = React.memo(
           backgroundColor: node.color || (isDarkMode ? '#1e293b' : 'white'),
           zIndex: isSelected ? 99 : 10
         }}
+        data-node-id={node.id}
+        data-node-label={node.label}
         onMouseDown={(e) => onMouseDown(e, node.id)}
-        onClick={onClick}
+        onClick={(e) => onClick(e, node.id)}
       >
         <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center">
           <div
@@ -298,6 +361,7 @@ const DiagramNode = React.memo(
                       ? { left: '50%', bottom: -6, transform: 'translateX(-50%)' }
                       : { left: -6, top: '50%', transform: 'translateY(-50%)' }
               }
+              data-testid={`node-port-${node.id}-${idx}`}
               onMouseDown={(e) => { e.stopPropagation(); }}
               onClick={(e) => { e.stopPropagation(); onPortClick(e, node.id, idx); }}
             />
@@ -337,7 +401,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     initialPositions: Record<string, Position>;
   } | null>(null);
   const [hasRecordedDragHistory, setHasRecordedDragHistory] = useState(false);
-  const [pendingConnection, setPendingConnection] = useState<{ nodeId: string; portIdx: number } | null>(null);
+  const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
   const [selectionMarquee, setSelectionMarquee] = useState<{
     start: Position;
     current: Position;
@@ -542,6 +606,21 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
       onConnect(pendingConnection.nodeId, nodeId, pendingConnection.portIdx, portIdx);
     }
     setPendingConnection(null);
+  };
+
+  const handleNodeConnectClick = (e: React.MouseEvent, nodeId: string) => {
+    if (activeTool !== 'draw') return;
+    const world = screenToWorld(e.clientX, e.clientY);
+    const resolution = resolvePendingConnectionFromNodeClick(nodes, pendingConnection, nodeId, world);
+    if (resolution.edgeToCreate) {
+      onConnect(
+        resolution.edgeToCreate.sourceId,
+        resolution.edgeToCreate.targetId,
+        resolution.edgeToCreate.sourcePortIdx,
+        resolution.edgeToCreate.targetPortIdx
+      );
+    }
+    setPendingConnection(resolution.nextPending);
   };
 
   useEffect(() => {
@@ -814,7 +893,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
               });
               setHasRecordedDragHistory(false);
             }}
-            onClick={(e) => { e.stopPropagation(); }}
+            onClick={(e, id) => { e.stopPropagation(); handleNodeConnectClick(e, id); }}
             onPortClick={(_, id, idx) => handlePortClick(id, idx)}
           />
         ))}
