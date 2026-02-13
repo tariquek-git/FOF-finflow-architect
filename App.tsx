@@ -1733,9 +1733,6 @@ const App: React.FC = () => {
         storageWarning={storageWarning}
         isSidebarOpen={isSidebarOpen}
         isInspectorOpen={isInspectorOpen}
-        showSwimlanes={showSwimlanes}
-        snapToGrid={snapToGrid}
-        gridMode={gridMode}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         onToggleInspector={() => setIsInspectorOpen((prev) => !prev)}
         onToggleTheme={() => setIsDarkMode((prev) => !prev)}
@@ -1750,9 +1747,6 @@ const App: React.FC = () => {
         onExportDiagram={handleExportDiagram}
         onExportPng={handleExportPng}
         onExportPdf={handleExportPdf}
-        onToggleSwimlanes={handleToggleSwimlanes}
-        onToggleSnapToGrid={() => setSnapToGrid((prev) => !prev)}
-        onCycleGridMode={handleCycleGridMode}
         centerSlot={
           isAIEnabled ? (
             <div className={`group relative ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
@@ -2014,10 +2008,6 @@ const App: React.FC = () => {
             pointerWorld={pointerWorld}
             selectedNodeCount={selectedNodeIds.length}
             hasSelectedEdge={hasSelectedEdge}
-            showPorts={showPorts}
-            onTogglePorts={toggleShowPorts}
-            showMinimap={showMinimap}
-            onToggleMinimap={() => setShowMinimap((prev) => !prev)}
             onOpenCanvasControls={handleOpenCanvasControls}
           />
         </div>
@@ -2053,11 +2043,17 @@ const App: React.FC = () => {
               onToggleSnapToGrid={() => setSnapToGrid((prev) => !prev)}
               showPorts={showPorts}
               onTogglePorts={toggleShowPorts}
+              showMinimap={showMinimap}
+              onToggleMinimap={() => setShowMinimap((prev) => !prev)}
+              laneGroupingMode={laneGroupingMode}
+              onSetLaneGroupingMode={setLaneGroupingMode}
               hasRecoverySnapshot={hasRecoverySnapshot}
               onRestoreRecovery={handleRestoreRecovery}
               onResetCanvas={handleResetCanvas}
               onImportDiagram={() => importInputRef.current?.click()}
               onExportDiagram={handleExportDiagram}
+              onExportPng={handleExportPng}
+              onExportPdf={handleExportPdf}
               activeTabRequest={inspectorTabRequest}
             />
           )}

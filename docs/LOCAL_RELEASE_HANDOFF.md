@@ -1,21 +1,33 @@
-# Local Release Handoff (v0.2.0)
+# Local Release Handoff (v0.2.1)
 
 ## Release Identity
-- Release branch of record: `codex/uiux-modern-saas-v020`
+- Release branch of record: `codex/uiux-v021-interaction-clarity`
 - Local remote source of truth: `/Users/tarique/Documents/banking-diagram-mvp-origin.git`
-- Release tag of record: `v0.2.0`
-- Release commit: `0fa2b16061c1326d26cbfff9e62c61fb15ebadfe`
-- Release type: Local-first UI/UX modernization cut
+- Release tag of record: `v0.2.1`
+- Release commit: `<pending-commit-hash>`
+- Release type: Local-first interaction clarity + de-clutter hardening
+
+## Engineering Rules
+- Karpathy guidelines are now enforced at repo level via:
+  - `.cursor/rules/karpathy-guidelines.md`
+- QA/review checks for each change set:
+  - assumptions are explicit,
+  - implementation remains minimal/surgical,
+  - success criteria are verifiable in test output.
 
 ## Gate Evidence
 All commands passed with exit code `0`:
 1. `npm run build`
-2. `npm run test:qa`
+2. `PW_PORT=4273 npx playwright test e2e/connect-human.spec.ts`
+3. `PW_PORT=4273 npm run test:smoke`
+4. `PW_PORT=4273 npm run test:acceptance`
+5. `PW_PORT=4273 npm run test:a11y`
 
 ## QA Snapshot
-- Playwright total: 24 passed, 0 failed
-- Accessibility suite: pass
-- Mobile toolbar/actions suites: pass
+- Connect-human suite: pass (7/7)
+- Smoke suite: pass (7/7)
+- Acceptance suite: pass (10/10)
+- Accessibility suite: pass (3/3)
 
 ## Public Contract Safety
 - No changes to schema or payload contracts (`nodes`, `edges`, `drawings`, layout persistence format).
@@ -23,13 +35,12 @@ All commands passed with exit code `0`:
 
 ## Deliverables
 - QA summary docs:
-  - `docs/mvp-qa-e2e-report.md`
-  - `docs/mvp-qa-e2e-report.json`
   - `docs/mvp-qa-report.md`
+  - `docs/CHANGELOG_v0.2.1-local.md`
 - Review artifacts:
-  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.0_handoff_20260212-232744.tar.gz`
-  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.0_handoff_20260212-232744.zip`
+  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.1_handoff_<timestamp>.tar.gz`
+  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.1_handoff_<timestamp>.zip`
 
 ## Notes
-- This release modernizes visual language and interaction hierarchy only.
-- All existing QA-critical button labels and test IDs remain preserved.
+- This release hardens interaction reliability and trims command-surface clutter.
+- Existing QA-critical labels and test IDs remain preserved.

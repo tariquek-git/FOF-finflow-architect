@@ -172,12 +172,25 @@ body {
   border: 1px solid var(--ui-border-light);
   background: var(--ui-surface-light);
   color: var(--app-light-text);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.ui-input:focus,
+.ui-input:focus-visible {
+  border-color: var(--ui-focus-light);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-focus-light) 18%, transparent);
 }
 
 .dark .ui-input {
   border-color: var(--ui-border-dark);
   background: var(--ui-surface-dark);
   color: var(--app-dark-text);
+}
+
+.dark .ui-input:focus,
+.dark .ui-input:focus-visible {
+  border-color: var(--ui-focus-dark);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-focus-dark) 20%, transparent);
 }
 
 .ui-section-title {
@@ -321,7 +334,7 @@ body {
   font-size: 10px;
   color: inherit;
   white-space: nowrap;
-  background: color-mix(in srgb, var(--ui-surface-soft-light) 85%, transparent);
+  background: color-mix(in srgb, var(--ui-surface-soft-light) 88%, transparent);
   transition: background-color 140ms ease, border-color 140ms ease;
 }
 

@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   Download,
   FileImage,
-  FileJson,
   FileText,
   HelpCircle,
   LifeBuoy,
@@ -175,6 +174,7 @@ const TopBar: React.FC<TopBarProps> = ({
               <button
                 type="button"
                 onClick={onCycleGridMode}
+                aria-pressed={gridMode !== 'none'}
                 className={`status-chip ${gridMode !== 'none' ? 'is-active' : ''}`}
                 title="Toggle grid mode"
               >
@@ -183,6 +183,7 @@ const TopBar: React.FC<TopBarProps> = ({
               <button
                 type="button"
                 onClick={onToggleSwimlanes}
+                aria-pressed={showSwimlanes}
                 className={`status-chip ${showSwimlanes ? 'is-active' : ''}`}
                 title="Toggle swimlanes"
               >
@@ -191,6 +192,7 @@ const TopBar: React.FC<TopBarProps> = ({
               <button
                 type="button"
                 onClick={onToggleSnapToGrid}
+                aria-pressed={snapToGrid}
                 className={`status-chip ${snapToGrid ? 'is-active' : ''}`}
                 title="Toggle snap to grid"
               >
@@ -199,43 +201,105 @@ const TopBar: React.FC<TopBarProps> = ({
             </div>
           </div>
 
-          <details
-            className={`shrink-0 rounded-md border p-1 ${
-              isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'
-            }`}
-          >
-            <summary className="list-none cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold">
-              <span className="inline-flex items-center gap-1.5">
-                <Download className="h-3.5 w-3.5" /> Export
-              </span>
-            </summary>
-            <div className="mt-1 flex flex-col gap-1 px-1 pb-1">
+          <div className="shrink-0 space-y-1">
+            <div className="ui-section-title px-1">File</div>
+            <div
+              data-testid="primary-actions-strip"
+              className={`flex flex-wrap items-center gap-1 rounded-md border p-1 ${
+                isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'
+              }`}
+            >
               <button
-                type="button"
+                onClick={onRestoreRecovery}
+                data-testid="toolbar-restore"
+                title="Restore backup"
+                className={`tap-target inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                  isDarkMode
+                    ? hasRecoverySnapshot
+                      ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
+                      : 'border-amber-500/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20'
+                    : hasRecoverySnapshot
+                      ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                      : 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                <LifeBuoy className="h-3.5 w-3.5" />
+                <span>Restore Backup</span>
+              </button>
+
+              <button
+                onClick={onResetCanvas}
+                data-testid="toolbar-reset-canvas"
+                title="New / Reset canvas"
+                className={`tap-target inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                  isDarkMode
+                    ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Reset</span>
+              </button>
+
+              <button
+                data-testid="toolbar-import-json"
+                onClick={onImportDiagram}
+                title="Import JSON"
+                className={`tap-target inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                  isDarkMode
+                    ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>Import JSON</span>
+              </button>
+
+              <button
                 data-testid="toolbar-export-json"
                 onClick={onExportDiagram}
-                className="ui-button-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold"
+                title="Export JSON"
+                className="tap-target inline-flex items-center gap-1.5 rounded-md bg-gradient-to-b from-blue-600 to-blue-700 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:brightness-110 dark:from-blue-500 dark:to-blue-600"
               >
-                <FileJson className="h-3.5 w-3.5" /> Export JSON
+                <Download className="h-3.5 w-3.5" />
+                <span>Export JSON</span>
               </button>
-              <button
-                type="button"
-                data-testid="toolbar-export-png"
-                onClick={onExportPng}
-                className="ui-button-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold"
-              >
-                <FileImage className="h-3.5 w-3.5" /> Export PNG
-              </button>
-              <button
-                type="button"
-                data-testid="toolbar-export-pdf"
-                onClick={onExportPdf}
-                className="ui-button-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold"
-              >
-                <FileText className="h-3.5 w-3.5" /> Export PDF
-              </button>
+
+              <details className="relative">
+                <summary
+                  className={`tap-target inline-flex cursor-pointer list-none items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                    isDarkMode
+                      ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Download className="h-3.5 w-3.5" /> More
+                </summary>
+                <div
+                  className={`absolute right-0 z-20 mt-1 flex min-w-[9.5rem] flex-col gap-1 rounded-md border p-1.5 shadow-lg ${
+                    isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    data-testid="toolbar-export-png"
+                    onClick={onExportPng}
+                    className="ui-button-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold"
+                  >
+                    <FileImage className="h-3.5 w-3.5" /> Export PNG
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="toolbar-export-pdf"
+                    onClick={onExportPdf}
+                    className="ui-button-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold"
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Export PDF
+                  </button>
+                </div>
+              </details>
             </div>
-          </details>
+          </div>
 
           <IconButton
             icon={isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -261,74 +325,6 @@ const TopBar: React.FC<TopBarProps> = ({
               <HelpCircle className="h-3.5 w-3.5" />Help
             </span>
           </button>
-        </div>
-
-        <div
-          data-testid="primary-actions-strip"
-          className={`primary-actions-strip rounded-md border px-2 py-1 ${
-            isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'
-          }`}
-        >
-          <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            Primary Actions
-          </div>
-          <div className="primary-actions-grid">
-            <button
-              onClick={onRestoreRecovery}
-              data-testid="toolbar-restore"
-              title="Restore backup"
-              className={`tap-target shrink-0 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition ${
-                isDarkMode
-                  ? hasRecoverySnapshot
-                    ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
-                    : 'border-amber-500/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20'
-                  : hasRecoverySnapshot
-                    ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
-                    : 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
-              }`}
-            >
-              <LifeBuoy className="h-4 w-4" />
-              <span>Restore Backup</span>
-            </button>
-
-            <button
-              onClick={onResetCanvas}
-              data-testid="toolbar-reset-canvas"
-              title="New / Reset canvas"
-              className={`tap-target shrink-0 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition ${
-                isDarkMode
-                  ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
-                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>Reset</span>
-            </button>
-
-            <button
-              data-testid="toolbar-import-json"
-              onClick={onImportDiagram}
-              title="Import JSON"
-              className={`tap-target shrink-0 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition ${
-                isDarkMode
-                  ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
-                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <Upload className="h-4 w-4" />
-              <span>Import JSON</span>
-            </button>
-
-            <button
-              data-testid="toolbar-export-json-inline"
-              onClick={onExportDiagram}
-              title="Export JSON"
-              className="tap-target shrink-0 flex items-center gap-2 rounded-md bg-gradient-to-b from-blue-600 to-blue-700 px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110 dark:from-blue-500 dark:to-blue-600 dark:text-white"
-            >
-              <Download className="h-4 w-4" />
-              <span>Export JSON</span>
-            </button>
-          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">

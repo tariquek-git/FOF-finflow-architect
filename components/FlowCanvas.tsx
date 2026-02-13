@@ -270,9 +270,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     () =>
       edges.filter((edge) => {
         if (selectedEdgeId === edge.id) return true;
+        const sourceNode = nodeById.get(edge.sourceId);
+        const targetNode = nodeById.get(edge.targetId);
+        if (sourceNode?.isConnectorHandle || targetNode?.isConnectorHandle) {
+          return true;
+        }
         return visibleNodeIds.has(edge.sourceId) || visibleNodeIds.has(edge.targetId);
       }),
-    [edges, selectedEdgeId, visibleNodeIds]
+    [edges, nodeById, selectedEdgeId, visibleNodeIds]
   );
 
   const selectedNodeSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);

@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+qa-artifacts
+src_previous_backup_2026_02_10
 *.local
 playwright-report
 test-results

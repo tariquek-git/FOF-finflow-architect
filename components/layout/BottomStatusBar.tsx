@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crosshair, Grid2x2, Map, Minus, Plus, Rows3 } from 'lucide-react';
+import { Crosshair, Grid2x2, Minus, Plus, Rows3 } from 'lucide-react';
 import type { GridMode, Position } from '../../types';
 
 type BottomStatusBarProps = {
@@ -16,10 +16,6 @@ type BottomStatusBarProps = {
   pointerWorld: Position | null;
   selectedNodeCount: number;
   hasSelectedEdge: boolean;
-  showPorts: boolean;
-  onTogglePorts: () => void;
-  showMinimap: boolean;
-  onToggleMinimap: () => void;
   onOpenCanvasControls: () => void;
 };
 
@@ -37,10 +33,6 @@ const BottomStatusBar: React.FC<BottomStatusBarProps> = ({
   pointerWorld,
   selectedNodeCount,
   hasSelectedEdge,
-  showPorts,
-  onTogglePorts,
-  showMinimap,
-  onToggleMinimap,
   onOpenCanvasControls
 }) => {
   const pointerLabel = pointerWorld
@@ -110,23 +102,6 @@ const BottomStatusBar: React.FC<BottomStatusBarProps> = ({
           >
             <Grid2x2 className="h-3.5 w-3.5" />
             <span>{gridMode}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onTogglePorts}
-            className={`status-chip ${showPorts ? 'is-active' : ''}`}
-            title="Toggle ports"
-          >
-            Ports
-          </button>
-          <button
-            type="button"
-            onClick={onToggleMinimap}
-            className={`status-chip ${showMinimap ? 'is-active' : ''}`}
-            title="Toggle minimap"
-          >
-            <Map className="h-3.5 w-3.5" />
-            <span>Minimap</span>
           </button>
           <button
             type="button"

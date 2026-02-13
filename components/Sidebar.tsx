@@ -123,10 +123,10 @@ const Sidebar = React.memo<SidebarProps>(({
       draggable
       onDragStart={(event) => onDragStartShape(event, type)}
       onClick={() => onAddNode(type)}
-      className={`group flex aspect-square cursor-grab flex-col items-center justify-center rounded-lg border p-2 text-center transition-all duration-150 active:cursor-grabbing ${
+      className={`group flex aspect-square cursor-grab flex-col items-center justify-center rounded-lg border p-1.5 text-center transition-all duration-150 active:cursor-grabbing ${
         isDarkMode
-          ? 'border-slate-700 bg-slate-900 hover:-translate-y-0.5 hover:border-blue-500 hover:bg-slate-800'
-          : 'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/40'
+          ? 'border-slate-800 bg-slate-900/80 hover:-translate-y-0.5 hover:border-blue-500/60 hover:bg-slate-800'
+          : 'border-slate-200/80 bg-white/90 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/35'
       }`}
       title={`Drag ${type} to canvas`}
     >
@@ -154,7 +154,7 @@ const Sidebar = React.memo<SidebarProps>(({
 
   return (
     <div className={`flex h-full flex-col ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-      <div className={`space-y-3 border-b px-4 py-4 ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+      <div className={`space-y-3 border-b px-4 py-3 ${isDarkMode ? 'border-slate-700/70' : 'border-slate-200/70'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Grid className="h-4 w-4 text-blue-500" />
@@ -183,7 +183,7 @@ const Sidebar = React.memo<SidebarProps>(({
 
         <div
           className={`rounded-lg border p-2 ${
-            isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
+            isDarkMode ? 'border-slate-700/80 bg-slate-900/80' : 'border-slate-200/80 bg-white/90'
           }`}
         >
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-500 dark:text-slate-400">
@@ -193,6 +193,7 @@ const Sidebar = React.memo<SidebarProps>(({
             <button
               type="button"
               onClick={onToggleSwimlanes}
+              aria-pressed={showSwimlanes}
               className={`status-chip ${showSwimlanes ? 'is-active' : ''}`}
               title="Toggle swimlanes"
             >
@@ -202,6 +203,7 @@ const Sidebar = React.memo<SidebarProps>(({
               type="button"
               data-testid="toolbar-toggle-risk-overlay"
               onClick={onToggleRiskOverlay}
+              aria-pressed={riskEnabled}
               className={`status-chip ${riskEnabled ? 'is-active' : ''}`}
               title="Toggle risk overlay"
             >
@@ -211,6 +213,7 @@ const Sidebar = React.memo<SidebarProps>(({
               type="button"
               data-testid="toolbar-toggle-ledger-overlay"
               onClick={onToggleLedgerOverlay}
+              aria-pressed={ledgerEnabled}
               className={`status-chip ${ledgerEnabled ? 'is-active' : ''}`}
               title="Toggle ledger overlay"
             >
@@ -219,10 +222,14 @@ const Sidebar = React.memo<SidebarProps>(({
           </div>
 
           <div className="mt-2">
-            <label className="ml-0.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-500 dark:text-slate-400">
+            <label
+              htmlFor="sidebar-lane-grouping"
+              className="ml-0.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-500 dark:text-slate-400"
+            >
               Lane Grouping
             </label>
             <select
+              id="sidebar-lane-grouping"
               value={laneGroupingMode}
               onChange={(event) => onSetLaneGroupingMode(event.target.value as LaneGroupingMode)}
               className="ui-input mt-1 h-8 w-full cursor-pointer px-2 text-xs"
@@ -237,7 +244,7 @@ const Sidebar = React.memo<SidebarProps>(({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-2.5">
         {sections.length === 0 ? (
           <div
             className={`rounded-lg border px-3 py-4 text-center text-xs ${
@@ -249,18 +256,18 @@ const Sidebar = React.memo<SidebarProps>(({
             No matching blocks.
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {sections.map((section) => (
               <div
                 key={section.key}
                 className={`overflow-hidden rounded-lg border transition-colors ${
-                  isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
+                  isDarkMode ? 'border-slate-700/80 bg-slate-900/80' : 'border-slate-200/80 bg-white/90'
                 }`}
               >
                 <button
                   onClick={() => toggleSection(section.key)}
-                  className={`flex w-full items-center justify-between px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] ${
-                    isDarkMode ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
+                  className={`flex w-full items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                    isDarkMode ? 'text-slate-300 hover:bg-slate-800/70' : 'text-slate-600 hover:bg-slate-50/70'
                   }`}
                 >
                   <span className="flex items-center gap-2">
@@ -278,10 +285,10 @@ const Sidebar = React.memo<SidebarProps>(({
 
                 {openSections[section.key] ? (
                   <div
-                    className={`grid grid-cols-3 gap-1.5 border-t p-2 ${
+                    className={`grid grid-cols-3 gap-1.5 border-t p-1.5 ${
                       isDarkMode
-                        ? 'border-slate-700 bg-slate-950/40'
-                        : 'border-slate-200 bg-slate-50/70'
+                        ? 'border-slate-700/80 bg-slate-950/35'
+                        : 'border-slate-200/80 bg-slate-50/60'
                     }`}
                   >
                     {section.filteredTypes.map(renderShapeButton)}

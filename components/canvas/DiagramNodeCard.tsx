@@ -17,9 +17,9 @@ type DiagramNodeCardProps = {
   onPortClick: (event: React.MouseEvent, id: string, portIdx: number) => void;
 };
 
-const PORT_HIT_SIZE = 18;
+const PORT_HIT_SIZE = 22;
 const PORT_HALF = PORT_HIT_SIZE / 2;
-const PORT_DOT_SIZE = 8;
+const PORT_DOT_SIZE = 9;
 
 const getBadge = (node: Node): string | null => {
   if (node.accountType === AccountType.FBO) return 'FBO';
@@ -190,11 +190,11 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
         isDarkMode
       )} ${
         connectState === 'source'
-          ? 'scale-[1.02] border-emerald-500 ring-2 ring-emerald-300/80 shadow-lg'
+          ? 'scale-[1.02] border-emerald-500 ring-2 ring-emerald-300/85 shadow-xl'
           : isSelected
-            ? 'scale-[1.02] border-blue-500 ring-2 ring-blue-400/70 shadow-lg'
+            ? 'scale-[1.02] border-blue-500 ring-2 ring-blue-500/85 shadow-xl'
             : connectState === 'candidate'
-              ? 'border-sky-400 ring-2 ring-sky-300/70'
+              ? 'border-sky-400 ring-2 ring-sky-300/80'
               : 'hover:-translate-y-0.5 hover:shadow-[0_10px_26px_rgba(15,23,42,0.12)]'
       }`}
       style={{
@@ -235,14 +235,20 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
           </div>
 
           {showBodyMeta ? (
-            <div className="border-t border-slate-200/90 px-2.5 py-1 text-[9px] text-slate-500 dark:border-slate-700/90 dark:text-slate-400">
+            <div
+              data-testid={`node-meta-${node.id}`}
+              className="border-t border-slate-200/90 px-2.5 py-1 text-[9px] text-slate-500 dark:border-slate-700/90 dark:text-slate-400"
+            >
               <div className="truncate">Type: {node.type}</div>
               {node.accountType ? <div className="truncate">Ledger: {node.accountType}</div> : null}
             </div>
           ) : null}
 
           {showFooter && statuses.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-1 border-t border-slate-200/90 px-2.5 py-1 dark:border-slate-700/90">
+            <div
+              data-testid={`node-status-${node.id}`}
+              className="flex flex-wrap items-center gap-1 border-t border-slate-200/90 px-2.5 py-1 dark:border-slate-700/90"
+            >
               {statuses.slice(0, 3).map((status) => (
                 <span
                   key={`${node.id}-${status}`}

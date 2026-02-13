@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { getBezierPath } from '@xyflow/react';
 import { RAIL_COLORS } from '../../constants';
 import { Edge, FlowDirection, Node } from '../../types';
@@ -37,6 +37,7 @@ const DiagramEdgePathComponent: React.FC<DiagramEdgePathProps> = ({
   totalEdges,
   onSelect
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const start = getPortPosition(source, edge.sourcePortIdx);
   const end = getPortPosition(target, edge.targetPortIdx);
 
@@ -75,17 +76,22 @@ const DiagramEdgePathComponent: React.FC<DiagramEdgePathProps> = ({
   return (
     <g
       className="group cursor-pointer transition-opacity duration-150"
+      data-testid={`edge-${edge.id}`}
+      data-edge-id={edge.id}
+      data-dimmed={isDimmed ? 'true' : 'false'}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(edge.id);
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{ opacity: isDimmed ? 0.2 : 1 }}
     >
       <path d={pathD} stroke="transparent" strokeWidth="16" fill="none" />
       <path
         d={pathD}
         stroke={strokeColor}
-        strokeWidth={isSelected ? 3.8 : edge.thickness || 2}
+        strokeWidth={isSelected ? 4.2 : edge.thickness || 2}
         strokeDasharray={strokeDash}
         fill="none"
         className="transition-[stroke-width,opacity] duration-150"
@@ -94,9 +100,9 @@ const DiagramEdgePathComponent: React.FC<DiagramEdgePathProps> = ({
       <path
         d={pathD}
         stroke={strokeColor}
-        strokeWidth={isSelected ? 7 : 6}
+        strokeWidth={isSelected ? 9 : 6}
         fill="none"
-        opacity={isSelected ? 0.24 : 0}
+        opacity={isSelected ? 0.32 : 0}
         className="pointer-events-none transition-opacity duration-150 group-hover:opacity-20"
       />
 
@@ -123,12 +129,13 @@ const DiagramEdgePathComponent: React.FC<DiagramEdgePathProps> = ({
 
       {showLabel ? (
         <foreignObject
+          data-testid={`edge-label-${edge.id}`}
           x={midPoint.x - 66}
           y={midPoint.y - (finalOffset > 0 ? 56 : -18)}
           width="132"
           height="46"
           className={`pointer-events-none overflow-visible transition-opacity duration-150 ${
-            isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            isSelected || isHovered ? 'opacity-100' : 'opacity-0'
           }`}
         >
           <div className="flex flex-col items-center justify-center">

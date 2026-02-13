@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Plus, Settings2 } from 'lucide-react';
+import { Layers, Map, Plus, Settings2 } from 'lucide-react';
 import { GridMode, LaneGroupingMode } from '../../types';
 
 type CanvasInspectorSectionsProps = {
@@ -15,6 +15,8 @@ type CanvasInspectorSectionsProps = {
   onToggleSnapToGrid: () => void;
   showPorts: boolean;
   onTogglePorts: () => void;
+  showMinimap: boolean;
+  onToggleMinimap: () => void;
   laneGroupingMode: LaneGroupingMode;
   onSetLaneGroupingMode: (mode: LaneGroupingMode) => void;
 };
@@ -55,6 +57,8 @@ const CanvasInspectorSections: React.FC<CanvasInspectorSectionsProps> = ({
   onToggleSnapToGrid,
   showPorts,
   onTogglePorts,
+  showMinimap,
+  onToggleMinimap,
   laneGroupingMode,
   onSetLaneGroupingMode
 }) => {
@@ -87,6 +91,18 @@ const CanvasInspectorSections: React.FC<CanvasInspectorSectionsProps> = ({
             }`}
           >
             {showPorts ? 'Ports On' : 'Ports Off'}
+          </button>
+          <button
+            type="button"
+            onClick={onToggleMinimap}
+            aria-pressed={showMinimap}
+            className={`col-span-2 inline-flex items-center justify-center gap-1 rounded-md border px-3 py-2 text-[10px] font-semibold uppercase transition-all ${
+              showMinimap
+                ? 'border-blue-600 bg-blue-600 text-white'
+                : 'border-slate-300 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+            }`}
+          >
+            <Map className="h-3.5 w-3.5" /> {showMinimap ? 'Minimap On' : 'Minimap Off'}
           </button>
         </div>
 

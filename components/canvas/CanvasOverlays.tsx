@@ -22,7 +22,12 @@ const getRiskNodeIds = (nodes: Node[], edges: Edge[]) => {
   const set = new Set<string>();
 
   for (const node of nodes) {
-    if (node.type === EntityType.GATE) {
+    if (
+      node.type === EntityType.GATE ||
+      node.type === EntityType.PROCESSOR ||
+      node.type === EntityType.NETWORK ||
+      node.type === EntityType.SPONSOR_BANK
+    ) {
       set.add(node.id);
     }
   }
@@ -147,6 +152,7 @@ const CanvasOverlays: React.FC<CanvasOverlaysProps> = ({
             return (
               <rect
                 key={`risk-overlay-${node.id}`}
+                data-testid={`risk-overlay-${node.id}`}
                 x={node.position.x - 6}
                 y={node.position.y - 6}
                 width={width + 12}
@@ -169,6 +175,7 @@ const CanvasOverlays: React.FC<CanvasOverlaysProps> = ({
             return (
               <rect
                 key={`ledger-overlay-${node.id}`}
+                data-testid={`ledger-overlay-${node.id}`}
                 x={node.position.x - 4}
                 y={node.position.y - 4}
                 width={width + 8}

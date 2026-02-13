@@ -1,6 +1,37 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Download, type Page } from '@playwright/test';
 
 const EDGE_SELECTOR = 'svg g.cursor-pointer.group';
+const WORLD_LAYER_SELECTOR = '[data-testid="canvas-dropzone"] div.absolute.inset-0';
+
+const readDownloadText = async (download: Download): Promise<string> => {
+  const stream = await download.createReadStream();
+  if (!stream) throw new Error('Could not read download stream.');
+
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString('utf8');
+};
+
+const exportDiagramText = async (page: Page) => {
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('toolbar-export-json').first().click()
+  ]);
+  return readDownloadText(download);
+};
+
+const importDiagramText = async (page: Page, jsonText: string) => {
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('toolbar-import-json').first().click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'acceptance-import.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(jsonText, 'utf8')
+  });
+};
 
 const clickNodeByLabel = async (page: Page, label: string, shift = false) => {
   const locator = page.locator('div.group.absolute').filter({ hasText: label }).first();
@@ -122,4 +153,160 @@ test('edge style controls respond for selected connector', async ({ page }) => {
 
   await arrowHeadButton.click();
   await midArrowButton.click();
+});
+
+test('export controls include JSON/PNG/PDF and trigger downloads', async ({ page }) => {
+  await expect(page.getByTestId('toolbar-export-json').first()).toBeVisible();
+
+  await page.locator('summary:has-text("More")').first().click();
+  await expect(page.getByTestId('toolbar-export-png').first()).toBeVisible();
+  await expect(page.getByTestId('toolbar-export-pdf').first()).toBeVisible();
+
+  const [pngDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('toolbar-export-png').first().click()
+  ]);
+  expect((await pngDownload.suggestedFilename()).toLowerCase()).toContain('.png');
+
+  const [pdfDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('toolbar-export-pdf').first().click()
+  ]);
+  expect((await pdfDownload.suggestedFilename()).toLowerCase()).toContain('.pdf');
+});
+
+test('overlay toggles affect canvas overlays and expose aria-pressed state', async ({ page }) => {
+  await page.getByTitle('Drag Compliance Gate to canvas').click();
+
+  const riskToggle = page.getByTestId('toolbar-toggle-risk-overlay');
+  const ledgerToggle = page.getByTestId('toolbar-toggle-ledger-overlay');
+
+  await expect(riskToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(ledgerToggle).toHaveAttribute('aria-pressed', 'false');
+
+  await riskToggle.click();
+  await expect(riskToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => page.locator('[data-testid^="risk-overlay-"]').count()).toBeGreaterThan(0);
+
+  await ledgerToggle.click();
+  await expect(ledgerToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => page.locator('[data-testid^="ledger-overlay-"]').count()).toBeGreaterThan(0);
+});
+
+test('minimap toggle shows an interactive minimap and pans viewport', async ({ page }) => {
+  await page.locator('button[title="Open layout controls"]').click();
+  await expect(page.getByTestId('inspector-tab-canvas')).toHaveAttribute('aria-pressed', 'true');
+
+  const minimapToggle = page.getByRole('button', { name: /Minimap Off|Minimap On/ }).first();
+  await minimapToggle.click();
+  await expect(page.getByTestId('canvas-minimap')).toBeVisible();
+
+  const worldLayer = page.locator(WORLD_LAYER_SELECTOR).first();
+  const before = await worldLayer.getAttribute('style');
+
+  await page.evaluate(() => {
+    const minimap = document.querySelector('[data-testid="canvas-minimap"] [role="button"]') as HTMLElement | null;
+    if (!minimap) {
+      throw new Error('Minimap control is missing.');
+    }
+    const rect = minimap.getBoundingClientRect();
+    minimap.dispatchEvent(
+      new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        clientX: rect.left + 12,
+        clientY: rect.top + 12
+      })
+    );
+  });
+  await expect.poll(async () => worldLayer.getAttribute('style')).not.toBe(before);
+});
+
+test('edge labels reveal on edge focus and non-connected edges dim on node selection', async ({ page }) => {
+  const firstEdge = page.locator('g[data-edge-id]').first();
+  const edgeId = await firstEdge.getAttribute('data-edge-id');
+  if (!edgeId) {
+    throw new Error('Could not resolve first edge id');
+  }
+  const edgeLabel = page.getByTestId(`edge-label-${edgeId}`);
+
+  const opacityBeforeHover = await edgeLabel.evaluate((element) => window.getComputedStyle(element).opacity);
+  expect(Number(opacityBeforeHover)).toBeLessThan(0.2);
+
+  await firstEdge.dispatchEvent('click');
+  await expect
+    .poll(async () =>
+      edgeLabel.evaluate((element) => Number.parseFloat(window.getComputedStyle(element).opacity))
+    )
+    .toBeGreaterThan(0.75);
+
+  await clickNodeByLabel(page, 'Sponsor Bank');
+  await expect.poll(async () => page.locator('g[data-dimmed="true"]').count()).toBeGreaterThan(0);
+});
+
+test('inspector metadata is encoded in description and survives export/import', async ({ page }) => {
+  await clickNodeByLabel(page, 'Sponsor Bank');
+  await expect(page.getByTestId('inspector-tab-node')).toHaveAttribute('aria-pressed', 'true');
+
+  const detailsToggle = page.getByTestId('inspector-toggle-node-details');
+  if ((await detailsToggle.getAttribute('aria-expanded')) === 'false') {
+    await detailsToggle.click();
+  }
+
+  await page
+    .getByPlaceholder('Operational context and workflow notes...')
+    .fill('Primary settlement and sponsorship responsibilities.');
+  await page.getByPlaceholder('e.g. Sponsor Bank').fill('North Ridge Sponsor');
+  await page.getByPlaceholder('Team or provider').fill('Compliance Ops');
+
+  const exportedText = await exportDiagramText(page);
+  const payload = JSON.parse(exportedText) as {
+    diagram?: { nodes?: Array<{ label?: string; description?: string }> };
+  };
+  const sponsorNode = payload.diagram?.nodes?.find((node) => node.label === 'Sponsor Bank');
+  expect(sponsorNode?.description).toContain('[[finflow-meta]]');
+  expect(sponsorNode?.description).toContain('custodyHolder=North Ridge Sponsor');
+  expect(sponsorNode?.description).toContain('kycOwner=Compliance Ops');
+  expect(sponsorNode?.description).toContain('Primary settlement and sponsorship responsibilities.');
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByTestId('toolbar-reset-canvas').first().click();
+  await importDiagramText(page, exportedText);
+
+  await clickNodeByLabel(page, 'Sponsor Bank');
+  if ((await detailsToggle.getAttribute('aria-expanded')) === 'false') {
+    await detailsToggle.click();
+  }
+  await expect(page.getByPlaceholder('e.g. Sponsor Bank')).toHaveValue('North Ridge Sponsor');
+  await expect(page.getByPlaceholder('Team or provider')).toHaveValue('Compliance Ops');
+});
+
+test('level-of-detail hides node metadata and edge labels as zoom decreases', async ({ page }) => {
+  await expect(page.getByTestId('node-meta-starter-sponsor')).toBeVisible();
+
+  const firstEdge = page.locator('g[data-edge-id]').first();
+  const edgeId = await firstEdge.getAttribute('data-edge-id');
+  if (!edgeId) {
+    throw new Error('Could not resolve first edge id');
+  }
+
+  await firstEdge.dispatchEvent('click');
+  await expect
+    .poll(async () =>
+      page
+        .getByTestId(`edge-label-${edgeId}`)
+        .evaluate((element) => Number.parseFloat(window.getComputedStyle(element).opacity))
+    )
+    .toBeGreaterThan(0.75);
+
+  const zoomOutButton = page.locator('button[title="Zoom out"]');
+  for (let i = 0; i < 5; i += 1) {
+    await zoomOutButton.click();
+  }
+  await expect(page.getByTestId('node-meta-starter-sponsor')).toHaveCount(0);
+
+  for (let i = 0; i < 3; i += 1) {
+    await zoomOutButton.click();
+  }
+  await expect(page.getByTestId(`edge-label-${edgeId}`)).toHaveCount(0);
 });
