@@ -38,8 +38,8 @@ All commands passed with exit code `0`:
   - `docs/mvp-qa-report.md`
   - `docs/CHANGELOG_v0.2.1-local.md`
 - Review artifacts:
-  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.1_handoff_<timestamp>.tar.gz`
-  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.1_handoff_<timestamp>.zip`
+  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.1_handoff_20260213-095535.tar.gz`
+  - `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.1_handoff_20260213-095535.zip`
 
 ## Notes
 - This release hardens interaction reliability and trims command-surface clutter.
