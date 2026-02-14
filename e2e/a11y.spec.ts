@@ -25,20 +25,43 @@ test('editor has no critical accessibility violations', async ({ page }) => {
   expect(criticalViolations, JSON.stringify(criticalViolations, null, 2)).toEqual([]);
 });
 
+test('selected node and edge states have no critical accessibility violations', async ({ page }) => {
+  await clickNodeByLabel(page, 'Sponsor Bank');
+  const nodeResults = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  const nodeCriticalViolations = nodeResults.violations.filter((violation) => violation.impact === 'critical');
+  expect(nodeCriticalViolations, JSON.stringify(nodeCriticalViolations, null, 2)).toEqual([]);
+
+  await page.locator('[data-testid="toolbar-insert-connector"]').click();
+  const edgeResults = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  const edgeCriticalViolations = edgeResults.violations.filter((violation) => violation.impact === 'critical');
+  expect(edgeCriticalViolations, JSON.stringify(edgeCriticalViolations, null, 2)).toEqual([]);
+});
+
 test('primary controls expose accessible names', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Select tool' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hand tool' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Connect tool' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Text tool' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Open layout controls' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Insert connector' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open quick start help' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Restore Backup' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Reset' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Import JSON' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open command palette' })).toBeVisible();
+  const strip = page.getByTestId('primary-actions-strip').first();
+  await expect(strip.getByTestId('toolbar-file-trigger')).toBeVisible();
+
+  await strip.getByTestId('toolbar-file-trigger').first().click();
+  const fileMenu = strip.getByTestId('toolbar-file-menu').first();
+  await expect(fileMenu).toBeVisible();
+  await expect(fileMenu.getByTestId('toolbar-export-json')).toBeVisible();
+  await expect(fileMenu.getByTestId('toolbar-restore')).toBeVisible();
+  await expect(fileMenu.getByTestId('toolbar-reset-canvas')).toBeVisible();
+  await expect(fileMenu.getByTestId('toolbar-import-json')).toBeVisible();
 
   await clickNodeByLabel(page, 'Sponsor Bank');
-  await expect(page.getByRole('button', { name: 'Delete selected item' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Delete selected node' })).toBeVisible();
 });
 
 test('toolbar help control is keyboard focusable with visible focus state', async ({ page }) => {

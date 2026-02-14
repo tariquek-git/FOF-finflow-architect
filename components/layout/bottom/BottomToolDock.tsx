@@ -1,5 +1,5 @@
 import React from 'react';
-import { MoreHorizontal, MousePointer2, Pencil, Sparkles, Type as TypeIcon } from 'lucide-react';
+import { Hand, MoreHorizontal, MousePointer2, Pencil, Sparkles, Type as TypeIcon } from 'lucide-react';
 import InsertConnectorButton from '../InsertConnectorButton';
 import type { ToolMode } from '../../../types';
 
@@ -39,6 +39,17 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
         className={dockButtonClass(activeTool === 'select')}
       >
         <MousePointer2 className="h-4 w-4" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onSetActiveTool('hand')}
+        aria-label="Hand tool"
+        aria-pressed={activeTool === 'hand'}
+        title="Hand (H)"
+        className={dockButtonClass(activeTool === 'hand')}
+      >
+        <Hand className="h-4 w-4" />
       </button>
 
       <button

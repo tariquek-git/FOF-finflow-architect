@@ -1,14 +1,14 @@
 import React from 'react';
 import {
   AlertTriangle,
-  Bot,
-  ChevronDown,
-  Download,
-  FileImage,
-  FileText,
+  Check,
+  CheckCircle2,
+  Command,
+  Crosshair,
   HelpCircle,
-  Import,
   LayoutPanelLeft,
+  LoaderCircle,
+  Maximize2,
   Moon,
   RotateCcw,
   RotateCw,
@@ -18,8 +18,27 @@ import {
   ZoomIn,
   ZoomOut
 } from 'lucide-react';
+import type { GridMode } from '../../types';
+import FunctionToolbar from './FunctionToolbar';
+
+type SaveState = 'saving' | 'saved' | 'error';
+
+type SaveStatus = {
+  state: SaveState;
+  savedAtLabel: string | null;
+  errorText: string | null;
+};
 
 type TopBarProps = {
+  workspaceName: string;
+  workspaceShortId: string;
+  recentWorkspaces: Array<{
+    workspaceId: string;
+    name: string;
+    shortId: string;
+    lastOpenedAt: string;
+    isActive: boolean;
+  }>;
   isDarkMode: boolean;
   nodesCount: number;
   edgesCount: number;
@@ -34,6 +53,12 @@ type TopBarProps = {
   canRedo: boolean;
   isAIEnabled: boolean;
   isAILoading: boolean;
+  snapToGrid: boolean;
+  showSwimlanes: boolean;
+  showPorts: boolean;
+  showMinimap: boolean;
+  gridMode: GridMode;
+  saveStatus: SaveStatus;
   onToggleSidebar: () => void;
   onToggleInspector: () => void;
   onToggleTheme: () => void;
@@ -42,25 +67,44 @@ type TopBarProps = {
   onRedo: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
-  onOpenCanvasControls: () => void;
+  onFitView: () => void;
+  onCenterDiagram: () => void;
+  onToggleGrid: () => void;
+  onToggleSnap: () => void;
+  onToggleSwimlanes: () => void;
+  onTogglePorts: () => void;
+  onToggleMinimap: () => void;
   onOpenAiLauncher: () => void;
+  onOpenCommandPalette: () => void;
   onRestoreRecovery: () => void;
+  onCreateWorkspace: () => void;
+  onOpenWorkspace: (workspaceId: string) => void;
   onResetCanvas: () => void;
   onImportDiagram: () => void;
   onExportDiagram: () => void;
   onExportSvg: () => void;
   onExportPng: () => void;
   onExportPdf: () => void;
+  onRetrySave: () => void;
 };
 
-const actionButton = (isDarkMode: boolean) =>
-  `tap-target shrink-0 whitespace-nowrap inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-semibold transition-colors ${
-    isDarkMode
-      ? 'border-slate-700 bg-slate-900/85 text-slate-200 hover:bg-slate-800'
-      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
-  }`;
+const actionButton = (_isDarkMode: boolean) =>
+  `menu-trigger tap-target shrink-0 whitespace-nowrap inline-flex h-8 items-center gap-1.5 rounded-[10px] px-2.5`;
+
+const SaveBadgeIcon: React.FC<{ state: SaveState }> = ({ state }) => {
+  if (state === 'saving') {
+    return <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />;
+  }
+  if (state === 'error') {
+    return <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />;
+  }
+  return <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />;
+};
 
 const TopBar: React.FC<TopBarProps> = ({
+  workspaceName,
+  workspaceShortId,
+  recentWorkspaces,
   isDarkMode,
   nodesCount,
   edgesCount,
@@ -75,6 +119,12 @@ const TopBar: React.FC<TopBarProps> = ({
   canRedo,
   isAIEnabled,
   isAILoading,
+  snapToGrid,
+  showSwimlanes,
+  showPorts,
+  showMinimap,
+  gridMode,
+  saveStatus,
   onToggleSidebar,
   onToggleInspector,
   onToggleTheme,
@@ -83,40 +133,178 @@ const TopBar: React.FC<TopBarProps> = ({
   onRedo,
   onZoomIn,
   onZoomOut,
-  onOpenCanvasControls,
-  onOpenAiLauncher,
+  onFitView,
+  onCenterDiagram,
+  onToggleGrid,
+  onToggleSnap,
+  onToggleSwimlanes,
+  onTogglePorts,
+  onToggleMinimap,
+  onOpenAiLauncher: _onOpenAiLauncher,
+  onOpenCommandPalette,
   onRestoreRecovery,
+  onCreateWorkspace,
+  onOpenWorkspace,
   onResetCanvas,
   onImportDiagram,
   onExportDiagram,
   onExportSvg,
   onExportPng,
-  onExportPdf
+  onExportPdf,
+  onRetrySave
 }) => {
+  const rowMeta = (
+    <span className="hidden shrink-0 rounded-full bg-slate-100/85 px-2.5 py-1 text-[10px] font-semibold text-slate-600 xl:inline-flex dark:bg-slate-800/80 dark:text-slate-300">
+      {nodesCount} nodes • {edgesCount} edges
+    </span>
+  );
+
+  const saveStatusText =
+    saveStatus.state === 'saving'
+      ? 'Saving…'
+      : saveStatus.state === 'error'
+        ? 'Save failed'
+        : saveStatus.savedAtLabel
+          ? `Saved ${saveStatus.savedAtLabel}`
+          : 'Saved';
+
+  const saveStatusToneClasses =
+    saveStatus.state === 'error'
+      ? isDarkMode
+        ? 'text-rose-200'
+        : 'text-rose-700'
+      : saveStatus.state === 'saving'
+        ? isDarkMode
+          ? 'text-cyan-200'
+          : 'text-cyan-700'
+        : isDarkMode
+          ? 'text-emerald-200'
+          : 'text-emerald-700';
+  const statusDetailsRef = React.useRef<HTMLDetailsElement | null>(null);
+  const viewDetailsRef = React.useRef<HTMLDetailsElement | null>(null);
+
+  const closeDetails = React.useCallback((targetRef?: React.RefObject<HTMLDetailsElement | null>) => {
+    const refs = [statusDetailsRef, viewDetailsRef];
+    refs.forEach((ref) => {
+      if (!ref.current?.open) return;
+      if (targetRef && ref !== targetRef) return;
+      ref.current.open = false;
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const onWindowMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      [statusDetailsRef, viewDetailsRef].forEach((ref) => {
+        if (!ref.current?.open) return;
+        if (!ref.current.contains(target)) {
+          ref.current.open = false;
+        }
+      });
+    };
+
+    const onWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (!statusDetailsRef.current?.open && !viewDetailsRef.current?.open) return;
+      event.preventDefault();
+      closeDetails();
+    };
+
+    window.addEventListener('mousedown', onWindowMouseDown);
+    window.addEventListener('keydown', onWindowKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', onWindowMouseDown);
+      window.removeEventListener('keydown', onWindowKeyDown);
+    };
+  }, [closeDetails]);
+
+  const runMenuAction = React.useCallback(
+    (action: () => void, detailsRef: React.RefObject<HTMLDetailsElement | null>) => {
+      action();
+      closeDetails(detailsRef);
+    },
+    [closeDetails]
+  );
+
   return (
     <header
-      className={`ff-topbar glass-panel z-50 mx-2 mt-2 flex shrink-0 flex-col gap-2 rounded-2xl border px-3 py-2.5 md:mx-3 md:px-4 ${
-        isDarkMode ? 'border-slate-700 bg-slate-950/88' : 'border-slate-200 bg-white/88'
-      }`}
+      className="ff-topbar shell-panel glass-panel z-50 mx-2 mt-2 flex shrink-0 flex-col gap-2 px-3 py-2.5 md:mx-3 md:px-4"
     >
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-cyan-600 text-sm font-bold text-white shadow-[0_8px_20px_rgba(15,23,42,0.22)]">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--ff-accent-primary)] text-[12px] font-semibold text-white shadow-soft">
             FF
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold tracking-tight">Flow of Funds Studio</h1>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+            <h1 className="truncate text-[15px] font-semibold tracking-tight text-text-primary">Flow of Funds Studio</h1>
+            <p className="text-[11px] font-medium text-text-muted">
               Fintech Diagram Workspace
             </p>
           </div>
           <span
-            className={`mono hidden shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold xl:inline-flex ${
-              isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
-            }`}
+            data-testid="workspace-display"
+            className="inline-flex min-w-0 max-w-[18rem] items-center truncate rounded-full border border-divider/60 bg-surface-elevated/70 px-2.5 py-1 text-[12px] font-medium text-text-secondary"
+            title={`${workspaceName} · ${workspaceShortId}`}
           >
-            {nodesCount} nodes • {edgesCount} edges
+            <span className="truncate">{workspaceName}</span>
+            <span className="mx-1.5 text-text-muted/60">·</span>
+            <span className="shrink-0 font-bold tracking-[0.08em]">{workspaceShortId}</span>
           </span>
+          {rowMeta}
+
+          <details ref={statusDetailsRef} className="relative">
+            <summary
+              data-testid="backup-status-indicator"
+              data-last-saved-at={recoveryLastSavedAt || ''}
+              className={`status-pill list-none cursor-pointer ${saveStatusToneClasses}`}
+            >
+              <SaveBadgeIcon state={saveStatus.state} />
+              <span className="max-w-[13rem] truncate">{saveStatusText}</span>
+            </summary>
+            <div className="status-pill-menu absolute left-0 z-40 mt-1.5 min-w-[16.5rem]">
+              <div className="px-2 py-1">
+                <div className="text-[11px] font-semibold text-text-muted">
+                  Save status
+                </div>
+                <div className="mt-1 text-[13px] font-semibold text-text-primary">{saveStatusText}</div>
+                {saveStatus.errorText ? (
+                  <div className="mt-1 text-[11px] text-rose-700 dark:text-rose-300">{saveStatus.errorText}</div>
+                ) : null}
+              </div>
+              <div className="my-1 border-t border-divider/65" />
+              <div className="px-2 py-1 text-[12px] text-text-secondary">{backupStatusText}</div>
+              <div className="px-2 py-1 text-[12px] text-text-secondary">
+                {isAIEnabled ? (isAILoading ? 'AI status: Running' : 'AI status: Ready') : 'AI status: Off for MVP'}
+              </div>
+              {saveStatus.state === 'error' ? (
+                <button type="button" onClick={() => runMenuAction(onRetrySave, statusDetailsRef)} className="menu-item mt-1">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Retry Save
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => runMenuAction(onRestoreRecovery, statusDetailsRef)}
+                className="menu-item mt-1"
+                disabled={!hasRecoverySnapshot}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Restore Backup
+              </button>
+              <a href={feedbackHref} target="_blank" rel="noreferrer" className="menu-item mt-1">
+                Feedback
+              </a>
+            </div>
+          </details>
+          {!isAIEnabled ? (
+            <span
+              data-testid="ai-disabled-badge"
+              className="status-chip h-7 border-amber-300/70 bg-amber-50/80 px-2 text-[11px] font-semibold text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/12 dark:text-amber-200"
+            >
+              AI Off
+            </span>
+          ) : null}
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
@@ -140,14 +328,14 @@ const TopBar: React.FC<TopBarProps> = ({
             {isInspectorOpen ? 'Hide Inspect' : 'Inspect'}
           </button>
 
-          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-200/80 p-1 dark:border-slate-700/80">
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               title="Undo"
               aria-label="Undo"
               onClick={onUndo}
               disabled={!canUndo}
-              className={actionButton(isDarkMode)}
+              className={`${actionButton(isDarkMode)} !px-2`}
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
@@ -157,239 +345,180 @@ const TopBar: React.FC<TopBarProps> = ({
               aria-label="Redo"
               onClick={onRedo}
               disabled={!canRedo}
-              className={actionButton(isDarkMode)}
+              className={`${actionButton(isDarkMode)} !px-2`}
             >
               <RotateCw className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className={actionButton(isDarkMode)}
-            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {isDarkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-            <span className="hidden xl:inline">{isDarkMode ? 'Light' : 'Dark'}</span>
-          </button>
+          <FunctionToolbar
+            recentWorkspaces={recentWorkspaces}
+            onRestoreRecovery={onRestoreRecovery}
+            onCreateWorkspace={onCreateWorkspace}
+            onOpenWorkspace={onOpenWorkspace}
+            onResetCanvas={onResetCanvas}
+            onImportDiagram={onImportDiagram}
+            onExportDiagram={onExportDiagram}
+            onExportSvg={onExportSvg}
+            onExportPng={onExportPng}
+            onExportPdf={onExportPdf}
+          />
 
-          <button
-            type="button"
-            onClick={onZoomOut}
-            className={actionButton(isDarkMode)}
-            title="Zoom out"
-            aria-label="Zoom out"
-          >
-            <ZoomOut className="h-3.5 w-3.5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={onZoomIn}
-            className={actionButton(isDarkMode)}
-            title="Zoom in"
-            aria-label="Zoom in"
-          >
-            <ZoomIn className="h-3.5 w-3.5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenCanvasControls}
-            className={actionButton(isDarkMode)}
-            title="Open layout controls"
-            aria-label="Open layout controls"
-          >
-            <Settings2 className="h-3.5 w-3.5" />
-            <span className="hidden xl:inline">Canvas</span>
-          </button>
-
-          <details className="relative shrink-0">
+          <details ref={viewDetailsRef} data-testid="toolbar-view-details" className="relative">
             <summary
-              className={`${actionButton(isDarkMode)} list-none cursor-pointer`}
-              title="System status"
-              aria-label="System status"
+              data-testid="toolbar-view-trigger"
+              className="menu-trigger list-none cursor-pointer"
+              aria-label="View settings"
             >
-              <span className="hidden xl:inline">System</span>
-              <span
-                data-testid="backup-status-indicator"
-                data-last-saved-at={recoveryLastSavedAt || ''}
-                className={`rounded-full px-2 py-0.5 ${
-                  hasRecoverySnapshot
-                    ? isDarkMode
-                      ? 'bg-emerald-500/20 text-emerald-200'
-                      : 'bg-emerald-100 text-emerald-700'
-                    : isDarkMode
-                      ? 'bg-amber-500/20 text-amber-200'
-                      : 'bg-amber-100 text-amber-700'
-                }`}
-              >
-                {backupStatusText}
-              </span>
-              {!isAIEnabled ? (
-                <span
-                  data-testid="ai-disabled-badge"
-                  className={`rounded-full border px-2 py-0.5 ${
-                    isDarkMode
-                      ? 'border-slate-700 bg-slate-900 text-slate-300'
-                      : 'border-slate-300 bg-white text-slate-600'
-                  }`}
-                >
-                  AI off
-                </span>
-              ) : null}
-              <ChevronDown className="h-3.5 w-3.5 opacity-80" />
+              <Settings2 className="h-3.5 w-3.5" />
+              <span>View</span>
             </summary>
-            <div
-              className={`absolute right-0 z-40 mt-1.5 flex min-w-[14rem] flex-col gap-1.5 rounded-xl border p-2 shadow-xl ${
-                isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
-              }`}
-            >
-              {!isAIEnabled ? (
-                <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-300">AI disabled for MVP</div>
-              ) : null}
-              {storageWarning ? (
-                <span
-                  role="status"
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                    isDarkMode ? 'bg-amber-500/15 text-amber-200' : 'bg-amber-100 text-amber-700'
-                  }`}
-                  title={storageWarning}
-                >
-                  <AlertTriangle className="h-3 w-3" /> Autosave issue
-                </span>
-              ) : null}
-              <a
-                href={feedbackHref}
-                target="_blank"
-                rel="noreferrer"
-                className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${
-                  isDarkMode
-                    ? 'bg-cyan-500/20 text-cyan-200 hover:bg-cyan-500/30'
-                    : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
-                }`}
+            <div data-testid="toolbar-view-menu" className="menu-panel absolute right-0 z-40 mt-1.5 min-w-[14rem]">
+              <button
+                type="button"
+                data-testid="toolbar-view-grid"
+                onClick={() => runMenuAction(onToggleGrid, viewDetailsRef)}
+                className="menu-item justify-between"
+                aria-pressed={gridMode !== 'none'}
               >
-                Feedback
-              </a>
+                <span>Grid</span>
+                {gridMode !== 'none' ? <Check className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-300" /> : null}
+              </button>
+              <button
+                type="button"
+                data-testid="toolbar-view-snap"
+                onClick={() => runMenuAction(onToggleSnap, viewDetailsRef)}
+                className="menu-item justify-between"
+                aria-pressed={snapToGrid}
+              >
+                <span>Snap</span>
+                <span className="flex items-center gap-1">
+                  <span className="ui-kbd-hint">S</span>
+                  {snapToGrid ? <Check className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-300" /> : null}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-testid="toolbar-view-lanes"
+                onClick={() => runMenuAction(onToggleSwimlanes, viewDetailsRef)}
+                className="menu-item justify-between"
+                aria-pressed={showSwimlanes}
+              >
+                <span>Lanes</span>
+                <span className="flex items-center gap-1">
+                  <span className="ui-kbd-hint">L</span>
+                  {showSwimlanes ? <Check className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-300" /> : null}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-testid="toolbar-view-handles"
+                onClick={() => runMenuAction(onTogglePorts, viewDetailsRef)}
+                className="menu-item justify-between"
+                aria-pressed={showPorts}
+              >
+                <span>Handles on hover</span>
+                <span className="flex items-center gap-1">
+                  <span className="ui-kbd-hint">P</span>
+                  {showPorts ? <Check className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-300" /> : null}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-testid="toolbar-view-minimap"
+                onClick={() => runMenuAction(onToggleMinimap, viewDetailsRef)}
+                className="menu-item justify-between"
+                aria-pressed={showMinimap}
+              >
+                <span>Minimap</span>
+                {showMinimap ? <Check className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-300" /> : null}
+              </button>
+              <div className="my-1 border-t border-slate-200/75 dark:border-slate-700/75" />
+              <button
+                type="button"
+                data-testid="toolbar-view-zoom-out"
+                onClick={() => runMenuAction(onZoomOut, viewDetailsRef)}
+                className="menu-item justify-between"
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <ZoomOut className="h-3.5 w-3.5" /> Zoom out
+                </span>
+                <span className="ui-kbd-hint">-</span>
+              </button>
+              <button
+                type="button"
+                data-testid="toolbar-view-zoom-in"
+                onClick={() => runMenuAction(onZoomIn, viewDetailsRef)}
+                className="menu-item justify-between"
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <ZoomIn className="h-3.5 w-3.5" /> Zoom in
+                </span>
+                <span className="ui-kbd-hint">+</span>
+              </button>
+              <button
+                type="button"
+                data-testid="toolbar-view-fit"
+                onClick={() => runMenuAction(onFitView, viewDetailsRef)}
+                className="menu-item"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+                Fit view
+              </button>
+              <button
+                type="button"
+                data-testid="toolbar-view-center"
+                onClick={() => runMenuAction(onCenterDiagram, viewDetailsRef)}
+                className="menu-item"
+              >
+                <Crosshair className="h-3.5 w-3.5" />
+                Center diagram
+              </button>
+              <button type="button" onClick={() => runMenuAction(onToggleTheme, viewDetailsRef)} className="menu-item">
+                {isDarkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                {isDarkMode ? 'Light theme' : 'Dark theme'}
+              </button>
             </div>
           </details>
+
+          <button
+            type="button"
+            data-testid="toolbar-open-command"
+            onClick={onOpenCommandPalette}
+            className="menu-trigger inline-flex h-8 items-center gap-1.5 rounded-[10px] px-2.5"
+            title="Open command palette (Cmd/Ctrl+K)"
+            aria-label="Open command palette"
+          >
+            <Command className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Command</span>
+          </button>
 
           <button
             type="button"
             data-testid="toolbar-help-open"
             onClick={onOpenHelp}
-            className={actionButton(isDarkMode)}
+            className={`${actionButton(isDarkMode)} !px-2`}
             title="Open quick start help ( ? )"
             aria-label="Open quick start help"
           >
             <HelpCircle className="h-3.5 w-3.5" />
-            <span className="hidden xl:inline">Help</span>
+            <span className="hidden md:inline">Help</span>
           </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-end">
+      {storageWarning ? (
         <div
-          className="flex w-full items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar lg:w-auto lg:justify-end lg:overflow-visible"
-          data-testid="primary-actions-strip"
+          role="status"
+          className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${
+            isDarkMode
+              ? 'border-amber-500/35 bg-amber-500/10 text-amber-200'
+              : 'border-amber-200 bg-amber-50 text-amber-700'
+          }`}
         >
-          <span className="ui-section-title shrink-0 px-1">Primary Actions</span>
-
-          <button
-            type="button"
-            data-testid="toolbar-restore"
-            onClick={onRestoreRecovery}
-            className={actionButton(isDarkMode)}
-            title="Restore backup"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Restore Backup
-          </button>
-
-          <button
-            type="button"
-            data-testid="toolbar-reset-canvas"
-            onClick={onResetCanvas}
-            className="tap-target shrink-0 whitespace-nowrap inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-100 dark:hover:bg-rose-500/30"
-            title="Reset canvas"
-          >
-            Reset
-          </button>
-
-          <button
-            type="button"
-            data-testid="toolbar-import-json"
-            onClick={onImportDiagram}
-            className={actionButton(isDarkMode)}
-            title="Import JSON"
-          >
-            <Import className="h-3.5 w-3.5" />
-            Import JSON
-          </button>
-
-          <button
-            type="button"
-            data-testid="toolbar-export-json"
-            onClick={onExportDiagram}
-            className="ui-button-primary tap-target shrink-0 whitespace-nowrap inline-flex h-9 items-center gap-1.5 px-2.5 text-[11px] font-semibold"
-            title="Export JSON"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export JSON
-          </button>
-
-          <details className="relative shrink-0">
-            <summary className={`${actionButton(isDarkMode)} list-none cursor-pointer`} title="Export options">
-              <Download className="h-3.5 w-3.5" />
-              More
-            </summary>
-            <div
-              className={`absolute right-0 z-40 mt-1.5 flex min-w-[11rem] flex-col gap-1 rounded-xl border p-1.5 shadow-xl ${
-                isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
-              }`}
-            >
-              <button
-                type="button"
-                data-testid="toolbar-export-svg"
-                onClick={onExportSvg}
-                className="ui-button-secondary inline-flex items-center gap-1.5 px-2.5 py-2 text-[11px] font-semibold"
-              >
-                <Download className="h-3.5 w-3.5" /> Export SVG
-              </button>
-              <button
-                type="button"
-                data-testid="toolbar-export-png"
-                onClick={onExportPng}
-                className="ui-button-secondary inline-flex items-center gap-1.5 px-2.5 py-2 text-[11px] font-semibold"
-              >
-                <FileImage className="h-3.5 w-3.5" /> Export PNG
-              </button>
-              <button
-                type="button"
-                data-testid="toolbar-export-pdf"
-                onClick={onExportPdf}
-                className="ui-button-secondary inline-flex items-center gap-1.5 px-2.5 py-2 text-[11px] font-semibold"
-              >
-                <FileText className="h-3.5 w-3.5" /> Export PDF
-              </button>
-            </div>
-          </details>
-
-          {isAIEnabled ? (
-            <button
-              type="button"
-              data-testid="toolbar-open-ai-launcher"
-              onClick={onOpenAiLauncher}
-              className={`${actionButton(isDarkMode)} ${isAILoading ? 'animate-pulse' : ''}`}
-              title="Open AI flow generator"
-            >
-              <Bot className="h-3.5 w-3.5" />
-              AI
-            </button>
-          ) : null}
+          {storageWarning}
         </div>
-      </div>
+      ) : null}
     </header>
   );
 };

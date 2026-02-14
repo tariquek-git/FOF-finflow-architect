@@ -676,7 +676,6 @@ const App: React.FC = () => {
   const gridMode = useUIStore((state) => state.gridMode);
   const setGridMode = useUIStore((state) => state.setGridMode);
   const overlayMode = useUIStore((state) => state.overlayMode);
-  const setOverlayMode = useUIStore((state) => state.setOverlayMode);
   const laneGroupingMode = useUIStore((state) => state.laneGroupingMode);
   const setLaneGroupingMode = useUIStore((state) => state.setLaneGroupingMode);
   const pinnedNodeAttributes = useUIStore((state) => state.pinnedNodeAttributes);
@@ -1873,38 +1872,6 @@ const App: React.FC = () => {
     toggleShowSwimlanes();
   }, [toggleShowSwimlanes]);
 
-  const handleToggleRiskOverlay = useCallback(() => {
-    if (overlayMode === 'none') {
-      setOverlayMode('risk');
-      return;
-    }
-    if (overlayMode === 'risk') {
-      setOverlayMode('none');
-      return;
-    }
-    if (overlayMode === 'ledger') {
-      setOverlayMode('both');
-      return;
-    }
-    setOverlayMode('ledger');
-  }, [overlayMode, setOverlayMode]);
-
-  const handleToggleLedgerOverlay = useCallback(() => {
-    if (overlayMode === 'none') {
-      setOverlayMode('ledger');
-      return;
-    }
-    if (overlayMode === 'ledger') {
-      setOverlayMode('none');
-      return;
-    }
-    if (overlayMode === 'risk') {
-      setOverlayMode('both');
-      return;
-    }
-    setOverlayMode('risk');
-  }, [overlayMode, setOverlayMode]);
-
   useEffect(() => {
     if (laneGroupingMode === 'manual') return;
     const labels = getLaneLabelsForMode(laneGroupingMode);
@@ -2071,6 +2038,12 @@ const App: React.FC = () => {
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
+      const previousRecoveryTimestamp = recoveryLastSavedAt;
+      const importTimestamp = new Date().toISOString();
+      if (workspaceRecoveryMetaStorageKey) {
+        persistRecoveryMeta(workspaceRecoveryMetaStorageKey, { lastSavedAt: importTimestamp });
+      }
+      setRecoveryLastSavedAt(importTimestamp);
 
       try {
         const raw = await file.text();
@@ -2078,9 +2051,6 @@ const App: React.FC = () => {
         if (!parsed) {
           throw new Error('Unsupported file format.');
         }
-
-        flushActiveWorkspaceSave();
-        saveRecoverySnapshot();
         const importedWorkspaceId = parsed.workspace.workspaceId;
         const importedName = (parsed.workspace.name || '').trim() || activeWorkspace?.name || DEFAULT_WORKSPACE_NAME;
         const importedCreatedAt = parsed.workspace.createdAt;
@@ -2104,6 +2074,11 @@ const App: React.FC = () => {
           }
         }
 
+        flushActiveWorkspaceSave();
+        if (isReplace) {
+          saveRecoverySnapshot();
+        }
+
         const now = new Date().toISOString();
         const nextWorkspace: WorkspaceSummary = {
           workspaceId: targetWorkspaceId,
@@ -2119,24 +2094,53 @@ const App: React.FC = () => {
           ...getCurrentLayout(),
           ...parsed.layout
         };
+        const importedLayout = nextLayout as LayoutSettings;
         persistDiagramToStorage(getWorkspaceStorageKey(targetWorkspaceId), parsed.diagram);
-        persistLayoutToStorage(
-          getWorkspaceLayoutStorageKey(targetWorkspaceId),
-          nextLayout as LayoutSettings
-        );
+        persistLayoutToStorage(getWorkspaceLayoutStorageKey(targetWorkspaceId), importedLayout);
+        const importedRecoveryStorageKey = getWorkspaceRecoveryStorageKey(targetWorkspaceId);
+        const importedRecoveryLayoutStorageKey = getWorkspaceRecoveryLayoutStorageKey(targetWorkspaceId);
+        const importedRecoveryMetaStorageKey = getWorkspaceRecoveryMetaStorageKey(targetWorkspaceId);
+        const importedRecoveryMeta: RecoveryMeta = { lastSavedAt: importTimestamp };
+        const recoveryDiagramSaved = persistDiagramToStorage(importedRecoveryStorageKey, parsed.diagram);
+        const recoveryLayoutSaved = persistLayoutToStorage(importedRecoveryLayoutStorageKey, importedLayout);
+        const recoveryBackupSaved = recoveryDiagramSaved
+          ? persistDiagramBackup(importedRecoveryStorageKey, parsed.diagram)
+          : false;
+        const recoveryMetaSaved = persistRecoveryMeta(importedRecoveryMetaStorageKey, importedRecoveryMeta);
+        let importRecoveryWarning: string | null = null;
+        if (recoveryDiagramSaved && recoveryLayoutSaved) {
+          if (!recoveryMetaSaved || !recoveryBackupSaved) {
+            importRecoveryWarning = 'Import succeeded, but backup metadata/history could not be fully updated.';
+          }
+        } else {
+          importRecoveryWarning = 'Import succeeded, but recovery snapshot could not be written.';
+        }
         activateWorkspace(nextWorkspace, {
           snapshot: parsed.diagram,
-          layout: nextLayout
+          layout: importedLayout
         });
+        setStorageWarning(importRecoveryWarning);
         pushHistory();
         pushToast(
           isReplace
-            ? `Imported and replaced workspace ${nextWorkspace.name} · ${getWorkspaceShortId(nextWorkspace.workspaceId)}.`
-            : `Imported as copy ${nextWorkspace.name} · ${getWorkspaceShortId(nextWorkspace.workspaceId)}.`,
+            ? `Diagram imported successfully. Backup saved. Imported and replaced workspace ${nextWorkspace.name} · ${getWorkspaceShortId(nextWorkspace.workspaceId)}.`
+            : `Diagram imported successfully. Backup saved. Imported as copy ${nextWorkspace.name} · ${getWorkspaceShortId(nextWorkspace.workspaceId)}.`,
           'success'
         );
       } catch (error) {
         logDevError('Import failed:', error);
+        if (workspaceRecoveryMetaStorageKey) {
+          if (previousRecoveryTimestamp) {
+            persistRecoveryMeta(workspaceRecoveryMetaStorageKey, { lastSavedAt: previousRecoveryTimestamp });
+          } else if (typeof window !== 'undefined') {
+            try {
+              window.localStorage.removeItem(workspaceRecoveryMetaStorageKey);
+            } catch {
+              // ignore recovery meta rollback failures
+            }
+          }
+        }
+        setRecoveryLastSavedAt(previousRecoveryTimestamp);
         pushToast('Import failed. Use a valid FinFlow JSON export file.', 'error');
       } finally {
         event.target.value = '';
@@ -2146,9 +2150,11 @@ const App: React.FC = () => {
       activateWorkspace,
       activeWorkspace?.name,
       getCurrentLayout,
+      recoveryLastSavedAt,
       pushHistory,
       pushToast,
       saveRecoverySnapshot,
+      workspaceRecoveryMetaStorageKey,
       workspaceIndex,
       flushActiveWorkspaceSave
     ]
@@ -2674,10 +2680,23 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
+      if (event.defaultPrevented) return;
 
       const key = event.key.toLowerCase();
       const isMetaOrCtrl = event.metaKey || event.ctrlKey;
       const isPlainKey = !isMetaOrCtrl && !event.altKey;
+      const hasOpenEscapeLayer =
+        event.key === 'Escape' &&
+        typeof document !== 'undefined' &&
+        !!document.querySelector(
+          '[data-testid="toolbar-file-details"][open], ' +
+            '[data-testid="toolbar-view-details"][open], ' +
+            'details[open] summary[data-testid="backup-status-indicator"], ' +
+            '[data-testid="node-context-toolbar"] [aria-expanded="true"], ' +
+            '[data-testid="bottom-overflow-sheet"], ' +
+            '[data-testid="canvas-context-menu"], ' +
+            '[data-testid="node-context-menu"]'
+        );
 
       if (isMetaOrCtrl && key === 'k') {
         event.preventDefault();
@@ -2688,6 +2707,16 @@ const App: React.FC = () => {
       if (event.key === 'Escape' && isCommandPaletteOpen) {
         event.preventDefault();
         setIsCommandPaletteOpen(false);
+        return;
+      }
+
+      if (event.key === 'Escape' && isShortcutsOpen) {
+        event.preventDefault();
+        setIsShortcutsOpen(false);
+        return;
+      }
+
+      if (hasOpenEscapeLayer) {
         return;
       }
 
@@ -2715,6 +2744,12 @@ const App: React.FC = () => {
         return;
       }
 
+      if (isPlainKey && key === 'h') {
+        event.preventDefault();
+        setActiveTool('hand');
+        return;
+      }
+
       if (isPlainKey && key === 'g') {
         event.preventDefault();
         handleCycleGridMode();
@@ -2733,7 +2768,7 @@ const App: React.FC = () => {
         return;
       }
 
-      if (isPlainKey && key === 'h') {
+      if (isPlainKey && key === 'p') {
         event.preventDefault();
         toggleShowPorts();
         return;
@@ -2804,6 +2839,7 @@ const App: React.FC = () => {
     handleToggleSwimlanes,
     handleUndo,
     isCommandPaletteOpen,
+    isShortcutsOpen,
     moveSelectedNodesBy,
     openHelp,
     selectedEdgeId,
@@ -2938,13 +2974,10 @@ const App: React.FC = () => {
         onToggleSwimlanes={handleToggleSwimlanes}
         onTogglePorts={toggleShowPorts}
         onToggleMinimap={() => setShowMinimap((prev) => !prev)}
-        onToggleRiskOverlay={handleToggleRiskOverlay}
-        onToggleLedgerOverlay={handleToggleLedgerOverlay}
         snapToGrid={snapToGrid}
         showSwimlanes={showSwimlanes}
         showPorts={showPorts}
         showMinimap={showMinimap}
-        overlayMode={overlayMode}
         gridMode={gridMode}
         canUndo={past.length > 0}
         canRedo={future.length > 0}

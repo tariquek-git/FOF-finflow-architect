@@ -30,6 +30,7 @@ type DiagramNodeCardProps = {
   isConnecting: boolean;
   onMouseDown: (event: React.MouseEvent, id: string) => void;
   onClick: (event: React.MouseEvent, id: string) => void;
+  onContextMenu?: (event: React.MouseEvent, id: string) => void;
   onPortClick: (
     event: React.MouseEvent,
     id: string,
@@ -238,6 +239,7 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
   isConnecting,
   onMouseDown,
   onClick,
+  onContextMenu,
   onPortClick,
   onPortMouseDown
 }) => {
@@ -350,6 +352,7 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
       onMouseLeave={() => setIsHovered(false)}
       onMouseDown={(event) => onMouseDown(event, node.id)}
       onClick={(event) => onClick(event, node.id)}
+      onContextMenu={(event) => onContextMenu?.(event, node.id)}
     >
       {compactMode ? (
         <div className="flex min-h-[40px] items-center gap-1.5 px-2 py-1.5">

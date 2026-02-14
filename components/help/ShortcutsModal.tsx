@@ -13,6 +13,7 @@ type ShortcutItem = {
 };
 
 const SHORTCUTS: ShortcutItem[] = [
+  { action: 'Command palette', combo: 'Cmd/Ctrl+K' },
   { action: 'Undo', combo: 'Cmd/Ctrl+Z' },
   { action: 'Redo', combo: 'Shift+Cmd/Ctrl+Z' },
   { action: 'Duplicate selected nodes', combo: 'Cmd/Ctrl+D' },
@@ -23,7 +24,14 @@ const SHORTCUTS: ShortcutItem[] = [
   { action: 'Large nudge', combo: 'Shift+Arrow Keys' },
   { action: 'Connect tool', combo: 'C' },
   { action: 'Select tool', combo: 'V' },
+  { action: 'Hand tool', combo: 'H' },
   { action: 'Text tool', combo: 'T' },
+  { action: 'Toggle grid', combo: 'G' },
+  { action: 'Toggle snap', combo: 'S' },
+  { action: 'Toggle lanes', combo: 'L' },
+  { action: 'Toggle handles', combo: 'P' },
+  { action: 'Toggle minimap', combo: 'M' },
+  { action: 'Clear selection', combo: 'Escape' },
   { action: 'Open shortcut help', combo: '?' }
 ];
 

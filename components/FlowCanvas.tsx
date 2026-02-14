@@ -7,6 +7,7 @@ import {
   NodePinnedAttribute,
   OverlayMode,
   Position,
+  ToolMode,
   ViewportTransform
 } from '../types';
 import DiagramNodeCard from './canvas/DiagramNodeCard';
@@ -38,7 +39,7 @@ interface FlowCanvasProps {
   isDarkMode: boolean;
   showPorts: boolean;
   snapToGrid: boolean;
-  activeTool: 'select' | 'draw' | 'text';
+  activeTool: ToolMode;
   onAddDrawing: (drawing: DrawingPath) => void;
   onOpenInspector: () => void;
   viewport: ViewportTransform;
@@ -69,6 +70,21 @@ type LodState = {
   showNodeFooter: boolean;
   showEdgeLabels: boolean;
 };
+
+type ContextMenuState =
+  | {
+      kind: 'canvas';
+      left: number;
+      top: number;
+      world: Position;
+    }
+  | {
+      kind: 'node';
+      left: number;
+      top: number;
+      world: Position;
+      nodeId: string;
+    };
 
 type PendingConnection = { nodeId: string; portIdx: number };
 type PendingConnectionResolution = {
@@ -194,6 +210,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   const [panningState, setPanningState] = useState<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [pointerWorld, setPointerWorld] = useState<Position | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [lodState, setLodState] = useState<LodState>(() => ({
     compactNodes: viewport.zoom < 0.35,
@@ -203,6 +220,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   }));
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef(viewport);
   const pointerMoveRafRef = useRef<number | null>(null);
   const pendingPointerRef = useRef<{ clientX: number; clientY: number; altKey: boolean } | null>(null);
@@ -443,6 +461,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   );
 
   const startPanning = useCallback((clientX: number, clientY: number) => {
+    setContextMenu(null);
     setPendingConnection(null);
     setDraggingNodes(null);
     setHasRecordedDragHistory(false);
@@ -455,6 +474,103 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
       baseY: viewportRef.current.y
     });
   }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const openContextMenu = useCallback(
+    (next:
+      | { kind: 'canvas'; clientX: number; clientY: number }
+      | { kind: 'node'; clientX: number; clientY: number; nodeId: string }) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const rawLeft = next.clientX - rect.left;
+      const rawTop = next.clientY - rect.top;
+      const menuWidth = next.kind === 'node' ? 188 : 212;
+      const menuHeight = next.kind === 'node' ? 168 : 196;
+      const left = clamp(rawLeft, 8, Math.max(8, rect.width - menuWidth - 8));
+      const top = clamp(rawTop, 8, Math.max(8, rect.height - menuHeight - 8));
+      const world = screenToWorld(next.clientX, next.clientY);
+      if (next.kind === 'node') {
+        setContextMenu({
+          kind: 'node',
+          left,
+          top,
+          world,
+          nodeId: next.nodeId
+        });
+        return;
+      }
+      setContextMenu({
+        kind: 'canvas',
+        left,
+        top,
+        world
+      });
+    },
+    [screenToWorld]
+  );
+
+  const getDiagramBounds = useCallback(() => {
+    const contentNodes = nodes.filter((node) => !node.isConnectorHandle);
+    if (contentNodes.length === 0) return null;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const node of contentNodes) {
+      const { width, height } = getNodeDimensions(node);
+      minX = Math.min(minX, node.position.x);
+      minY = Math.min(minY, node.position.y);
+      maxX = Math.max(maxX, node.position.x + width);
+      maxY = Math.max(maxY, node.position.y + height);
+    }
+
+    return {
+      minX,
+      minY,
+      maxX,
+      maxY
+    };
+  }, [nodes]);
+
+  const fitViewToDiagram = useCallback(() => {
+    const bounds = getDiagramBounds();
+    if (!bounds || !containerRef.current) return;
+
+    const padding = 120;
+    const availableWidth = Math.max(120, containerRef.current.clientWidth - 24);
+    const availableHeight = Math.max(120, containerRef.current.clientHeight - 24);
+    const width = Math.max(1, bounds.maxX - bounds.minX + padding * 2);
+    const height = Math.max(1, bounds.maxY - bounds.minY + padding * 2);
+    const zoom = clamp(Math.min(availableWidth / width, availableHeight / height), MIN_ZOOM, MAX_ZOOM);
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+
+    onViewportChange({
+      zoom,
+      x: containerRef.current.clientWidth / 2 - centerX * zoom,
+      y: containerRef.current.clientHeight / 2 - centerY * zoom
+    });
+  }, [getDiagramBounds, onViewportChange]);
+
+  const centerViewOnDiagram = useCallback(() => {
+    const bounds = getDiagramBounds();
+    if (!bounds || !containerRef.current) return;
+
+    const zoom = viewportRef.current.zoom;
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+
+    onViewportChange({
+      zoom,
+      x: containerRef.current.clientWidth / 2 - centerX * zoom,
+      y: containerRef.current.clientHeight / 2 - centerY * zoom
+    });
+  }, [getDiagramBounds, onViewportChange]);
 
   const autoScrollCanvasIfNeeded = useCallback(
     (clientX: number, clientY: number) => {
@@ -490,14 +606,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   const handleCanvasMouseDown = (event: React.MouseEvent) => {
     const isMiddleMouse = event.button === 1;
     const isSpacePanGesture = event.button === 0 && isSpacePressed;
+    const isHandPanGesture = event.button === 0 && activeTool === 'hand';
 
-    if (isMiddleMouse || isSpacePanGesture) {
+    if (isMiddleMouse || isSpacePanGesture || isHandPanGesture) {
       event.preventDefault();
       startPanning(event.clientX, event.clientY);
       return;
     }
 
     if (event.button !== 0) return;
+    closeContextMenu();
 
     const worldPos = screenToWorld(event.clientX, event.clientY);
 
@@ -570,6 +688,75 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     onSelectNodes([]);
     onSelectEdge(null);
   };
+
+  const runNodeSelectionAction = useCallback(
+    (nodeId: string, action: () => void) => {
+      const isAlreadySingleSelection =
+        selectedNodeIds.length === 1 && selectedNodeIds[0] === nodeId && !selectedEdgeId;
+      if (isAlreadySingleSelection) {
+        action();
+        return;
+      }
+      onSelectEdge(null);
+      onSelectNodes([nodeId]);
+      window.requestAnimationFrame(action);
+    },
+    [onSelectEdge, onSelectNodes, selectedEdgeId, selectedNodeIds]
+  );
+
+  const startConnectFromNode = useCallback(
+    (nodeId: string) => {
+      const sourceNode = nodeById.get(nodeId);
+      if (!sourceNode || sourceNode.data?.isLocked) return;
+      const { sourcePorts } = getNodeHandlePortConfig(sourceNode);
+      const sourcePortIdx = sourcePorts[0] ?? 1;
+      const armConnection = () => {
+        setPendingConnection({ nodeId: sourceNode.id, portIdx: sourcePortIdx });
+        setIsPortDragActive(false);
+      };
+      if (activeTool !== 'draw') {
+        onActivateConnectTool();
+        window.requestAnimationFrame(armConnection);
+        return;
+      }
+      armConnection();
+    },
+    [activeTool, nodeById, onActivateConnectTool]
+  );
+
+  const handleCanvasContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onSelectNodes([]);
+      onSelectEdge(null);
+      openContextMenu({
+        kind: 'canvas',
+        clientX: event.clientX,
+        clientY: event.clientY
+      });
+    },
+    [onSelectEdge, onSelectNodes, openContextMenu]
+  );
+
+  const handleNodeContextMenu = useCallback(
+    (event: React.MouseEvent, nodeId: string) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onSelectEdge(null);
+      if (!selectedNodeSet.has(nodeId) || selectedNodeIds.length !== 1) {
+        onSelectNodes([nodeId]);
+      }
+      onOpenInspector();
+      openContextMenu({
+        kind: 'node',
+        nodeId,
+        clientX: event.clientX,
+        clientY: event.clientY
+      });
+    },
+    [onOpenInspector, onSelectEdge, onSelectNodes, openContextMenu, selectedNodeIds, selectedNodeSet]
+  );
 
   const processMouseMove = useCallback(
     (clientX: number, clientY: number, altKey: boolean) => {
@@ -854,6 +1041,36 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!contextMenu) return;
+
+    const handleWindowMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof window.Node)) return;
+      if (contextMenuRef.current?.contains(target)) return;
+      setContextMenu(null);
+    };
+
+    const handleWindowResize = () => {
+      setContextMenu(null);
+    };
+
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setContextMenu(null);
+    };
+
+    window.addEventListener('mousedown', handleWindowMouseDown);
+    window.addEventListener('resize', handleWindowResize);
+    window.addEventListener('keydown', handleWindowKeyDown);
+
+    return () => {
+      window.removeEventListener('mousedown', handleWindowMouseDown);
+      window.removeEventListener('resize', handleWindowResize);
+      window.removeEventListener('keydown', handleWindowKeyDown);
+    };
+  }, [contextMenu]);
+
+  useEffect(() => {
     return () => {
       if (pointerMoveRafRef.current !== null) {
         window.cancelAnimationFrame(pointerMoveRafRef.current);
@@ -899,8 +1116,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     (event: React.MouseEvent, id: string) => {
       if (event.button !== 0 || isSpacePressed) return;
       event.stopPropagation();
+      closeContextMenu();
       const clickedNode = nodeById.get(id);
       const isLockedNode = !!clickedNode?.data?.isLocked;
+
+      if (activeTool === 'hand') {
+        startPanning(event.clientX, event.clientY);
+        return;
+      }
 
       if (activeTool === 'draw') {
         if (isLockedNode) {
@@ -957,6 +1180,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     },
     [
       activeTool,
+      closeContextMenu,
       handleNodeConnectClick,
       isSpacePressed,
       nodeById,
@@ -964,6 +1188,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
       onSelectEdge,
       onSelectNodes,
       screenToWorld,
+      startPanning,
       selectedNodeIds,
       selectedNodeSet
     ]
@@ -1033,26 +1258,21 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   }, [canvasSize.width, selectedNodeForToolbar, viewport.x, viewport.y, viewport.zoom]);
 
   const handleStartConnectFromSelectedNode = useCallback(() => {
-    if (!selectedNodeForToolbar || selectedNodeForToolbar.data?.isLocked) return;
-    const { sourcePorts } = getNodeHandlePortConfig(selectedNodeForToolbar);
-    const sourcePortIdx = sourcePorts[0] ?? 1;
-    const armConnection = () => {
-      setPendingConnection({ nodeId: selectedNodeForToolbar.id, portIdx: sourcePortIdx });
-      setIsPortDragActive(false);
-    };
-    if (activeTool !== 'draw') {
-      onActivateConnectTool();
-      window.requestAnimationFrame(armConnection);
-      return;
-    }
-    armConnection();
-  }, [activeTool, onActivateConnectTool, selectedNodeForToolbar]);
+    if (!selectedNodeForToolbar) return;
+    startConnectFromNode(selectedNodeForToolbar.id);
+  }, [selectedNodeForToolbar, startConnectFromNode]);
 
   return (
     <div
       ref={containerRef}
       className={`relative h-full w-full overflow-hidden ${
-        panningState ? 'cursor-grabbing' : isSpacePressed ? 'cursor-grab' : activeTool === 'draw' ? 'cursor-crosshair' : 'cursor-default'
+        panningState
+          ? 'cursor-grabbing'
+          : isSpacePressed || activeTool === 'hand'
+            ? 'cursor-grab'
+            : activeTool === 'draw'
+              ? 'cursor-crosshair'
+              : 'cursor-default'
       } ${
         activeTool === 'draw'
           ? isDarkMode
@@ -1069,6 +1289,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onContextMenu={handleCanvasContextMenu}
       onWheel={handleWheel}
     >
       <div
@@ -1182,6 +1403,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
             isConnecting={activeTool === 'draw'}
             onMouseDown={handleNodeMouseDown}
             onClick={handleNodeClick}
+            onContextMenu={handleNodeContextMenu}
             onPortMouseDown={handleNodePortMouseDown}
             onPortClick={handleNodePortClick}
           />
@@ -1207,6 +1429,120 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
           onToggleQuickAttribute={onToggleQuickAttribute}
           isQuickAttributePinned={isQuickAttributePinned}
         />
+      ) : null}
+
+      {contextMenu ? (
+        <div
+          ref={contextMenuRef}
+          data-testid={contextMenu.kind === 'node' ? 'node-context-menu' : 'canvas-context-menu'}
+          className="menu-panel absolute z-[85] min-w-[11rem]"
+          style={{ left: contextMenu.left, top: contextMenu.top }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {contextMenu.kind === 'node' ? (
+            <>
+              <button
+                type="button"
+                data-testid="context-menu-rename-node"
+                className="menu-item"
+                onClick={() => {
+                  closeContextMenu();
+                  runNodeSelectionAction(contextMenu.nodeId, onRenameSelection);
+                }}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                data-testid="context-menu-duplicate-node"
+                className="menu-item"
+                onClick={() => {
+                  closeContextMenu();
+                  runNodeSelectionAction(contextMenu.nodeId, onDuplicateSelection);
+                }}
+              >
+                Duplicate
+              </button>
+              <button
+                type="button"
+                data-testid="context-menu-start-connect"
+                className="menu-item"
+                onClick={() => {
+                  closeContextMenu();
+                  runNodeSelectionAction(contextMenu.nodeId, () => startConnectFromNode(contextMenu.nodeId));
+                }}
+              >
+                Start connection
+              </button>
+              <button
+                type="button"
+                data-testid="context-menu-delete-node"
+                className="menu-item rounded-md text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/30"
+                onClick={() => {
+                  closeContextMenu();
+                  runNodeSelectionAction(contextMenu.nodeId, onDeleteSelection);
+                }}
+              >
+                Delete
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                data-testid="context-menu-add-sponsor"
+                className="menu-item"
+                onClick={() => {
+                  closeContextMenu();
+                  onAddNode(EntityType.SPONSOR_BANK, {
+                    x: contextMenu.world.x - 90,
+                    y: contextMenu.world.y - 30
+                  });
+                }}
+              >
+                Add Sponsor node
+              </button>
+              <button
+                type="button"
+                data-testid="context-menu-add-text"
+                className="menu-item"
+                onClick={() => {
+                  closeContextMenu();
+                  onAddNode(EntityType.TEXT_BOX, {
+                    x: contextMenu.world.x - 90,
+                    y: contextMenu.world.y - 30
+                  });
+                }}
+              >
+                Add Text node
+              </button>
+              <div className="my-1 border-t border-slate-200/75 dark:border-slate-700/75" />
+              <button
+                type="button"
+                data-testid="context-menu-fit-view"
+                className="menu-item"
+                onClick={() => {
+                  closeContextMenu();
+                  fitViewToDiagram();
+                }}
+              >
+                Fit view
+              </button>
+              <button
+                type="button"
+                data-testid="context-menu-center-view"
+                className="menu-item"
+                onClick={() => {
+                  closeContextMenu();
+                  centerViewOnDiagram();
+                }}
+              >
+                Center view
+              </button>
+            </>
+          )}
+        </div>
       ) : null}
 
       {showMinimap ? (
