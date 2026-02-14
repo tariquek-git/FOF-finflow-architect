@@ -4,6 +4,7 @@ import {
   Edge,
   EntityType,
   Node,
+  NodePinnedAttribute,
   OverlayMode,
   Position,
   ViewportTransform
@@ -12,10 +13,12 @@ import DiagramNodeCard from './canvas/DiagramNodeCard';
 import DiagramEdgePath from './canvas/DiagramEdgePath';
 import CanvasOverlays from './canvas/CanvasOverlays';
 import MiniMapPanel from './canvas/MiniMapPanel';
+import NodeContextToolbar from './canvas/NodeContextToolbar';
 import { GRID_SIZE, MAX_ZOOM, MIN_ZOOM } from './canvas/canvasConstants';
 import {
   SWIMLANE_HEIGHT,
   getClosestPortToPoint,
+  getNodeHandlePortConfig,
   getNodeDimensions,
   getPortPosition
 } from './canvas/canvasGeometry';
@@ -41,12 +44,20 @@ interface FlowCanvasProps {
   viewport: ViewportTransform;
   onViewportChange: (viewport: ViewportTransform) => void;
   onPointerWorldChange?: (position: Position | null) => void;
+  isMobileViewport: boolean;
+  onDeleteSelection: () => void;
+  onDuplicateSelection: () => void;
+  onRenameSelection: () => void;
+  onActivateConnectTool: () => void;
+  onToggleQuickAttribute: () => void;
+  isQuickAttributePinned: boolean;
   showSwimlanes: boolean;
   swimlaneLabels: string[];
   gridMode: 'none' | 'lines' | 'dots';
   overlayMode: OverlayMode;
   showMinimap: boolean;
   exportLayerRef?: React.RefObject<HTMLDivElement | null>;
+  pinnedNodeAttributes: NodePinnedAttribute[];
 }
 
 const AUTOSCROLL_EDGE_THRESHOLD = 40;
@@ -63,6 +74,18 @@ type PendingConnection = { nodeId: string; portIdx: number };
 type PendingConnectionResolution = {
   nextPending: PendingConnection | null;
   edgeToCreate?: { sourceId: string; targetId: string; sourcePortIdx: number; targetPortIdx: number };
+};
+type PortRole = 'source' | 'target' | 'both';
+
+const parsePortHandleRef = (value: string): { nodeId: string; portIdx: number } | null => {
+  const match = /^node-port-(.+)-([0-9]+)$/.exec(value);
+  if (!match) return null;
+  const portIdx = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(portIdx)) return null;
+  return {
+    nodeId: match[1],
+    portIdx
+  };
 };
 
 const isEditableTarget = (target: EventTarget | null): target is HTMLElement => {
@@ -82,8 +105,12 @@ const resolvePendingConnectionFromNodeClick = (
   if (!clickedNode) return { nextPending: null };
 
   if (!pendingConnection) {
+    const { sourcePorts } = getNodeHandlePortConfig(clickedNode);
     return {
-      nextPending: { nodeId, portIdx: getClosestPortToPoint(clickedNode, clickWorld) }
+      nextPending: {
+        nodeId,
+        portIdx: getClosestPortToPoint(clickedNode, clickWorld, sourcePorts)
+      }
     };
   }
 
@@ -98,7 +125,8 @@ const resolvePendingConnectionFromNodeClick = (
 
   const sourcePortIdx = pendingConnection.portIdx;
   const sourcePortPosition = getPortPosition(sourceNode, sourcePortIdx);
-  const targetPortIdx = getClosestPortToPoint(clickedNode, sourcePortPosition);
+  const { targetPorts } = getNodeHandlePortConfig(clickedNode);
+  const targetPortIdx = getClosestPortToPoint(clickedNode, sourcePortPosition, targetPorts);
 
   return {
     nextPending: null,
@@ -134,12 +162,20 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   viewport,
   onViewportChange,
   onPointerWorldChange,
+  isMobileViewport,
+  onDeleteSelection,
+  onDuplicateSelection,
+  onRenameSelection,
+  onActivateConnectTool,
+  onToggleQuickAttribute,
+  isQuickAttributePinned,
   showSwimlanes,
   swimlaneLabels,
   gridMode,
   overlayMode,
   showMinimap,
-  exportLayerRef
+  exportLayerRef,
+  pinnedNodeAttributes
 }) => {
   const [draggingNodes, setDraggingNodes] = useState<{
     ids: string[];
@@ -148,6 +184,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   } | null>(null);
   const [hasRecordedDragHistory, setHasRecordedDragHistory] = useState(false);
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
+  const [isPortDragActive, setIsPortDragActive] = useState(false);
   const [selectionMarquee, setSelectionMarquee] = useState<{
     start: Position;
     current: Position;
@@ -169,6 +206,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
   const viewportRef = useRef(viewport);
   const pointerMoveRafRef = useRef<number | null>(null);
   const pendingPointerRef = useRef<{ clientX: number; clientY: number; altKey: boolean } | null>(null);
+  const lastPointerClientRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     viewportRef.current = viewport;
@@ -234,14 +272,74 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     return map;
   }, [nodes]);
 
-  const edgeGroups = useMemo(() => {
-    const groups: Record<string, string[]> = {};
+  const resolveDropConnectionTarget = useCallback(
+    (clientX: number, clientY: number, source: PendingConnection): PendingConnection | null => {
+      if (typeof document === 'undefined') return null;
+      const sourceNode = nodeById.get(source.nodeId);
+      if (!sourceNode) return null;
+
+      const sourcePortPosition = getPortPosition(sourceNode, source.portIdx);
+      const targetElement = document.elementFromPoint(clientX, clientY);
+      if (!(targetElement instanceof HTMLElement)) return null;
+
+      const handleElement = targetElement.closest('[data-testid^="node-port-"]') as HTMLElement | null;
+      if (handleElement) {
+        const handleRef = parsePortHandleRef(
+          handleElement.dataset.testid || handleElement.getAttribute('data-testid') || ''
+        );
+        const role = handleElement.getAttribute('data-port-role');
+        const isTargetHandle = role === 'target' || role === 'both';
+        if (
+          handleRef &&
+          isTargetHandle &&
+          handleRef.nodeId !== source.nodeId &&
+          !nodeById.get(handleRef.nodeId)?.data?.isLocked
+        ) {
+          return {
+            nodeId: handleRef.nodeId,
+            portIdx: handleRef.portIdx
+          };
+        }
+      }
+
+      const nodeElement = targetElement.closest('[data-node-id]') as HTMLElement | null;
+      const targetNodeId = nodeElement?.getAttribute('data-node-id');
+      if (!targetNodeId || targetNodeId === source.nodeId) return null;
+      const targetNode = nodeById.get(targetNodeId);
+      if (!targetNode || targetNode.data?.isLocked) return null;
+      const { targetPorts } = getNodeHandlePortConfig(targetNode);
+      const targetPortIdx = getClosestPortToPoint(targetNode, sourcePortPosition, targetPorts);
+      return {
+        nodeId: targetNodeId,
+        portIdx: targetPortIdx
+      };
+    },
+    [nodeById]
+  );
+
+  const selectedNodeSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
+
+  const edgeOffsetMeta = useMemo(() => {
+    const groups = new Map<string, string[]>();
     for (const edge of edges) {
       const key = [edge.sourceId, edge.targetId].sort().join('-');
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(edge.id);
+      const group = groups.get(key);
+      if (group) {
+        group.push(edge.id);
+      } else {
+        groups.set(key, [edge.id]);
+      }
     }
-    return groups;
+
+    const meta = new Map<string, { offsetIndex: number; totalEdges: number }>();
+    for (const group of groups.values()) {
+      const totalEdges = group.length;
+      group.forEach((edgeId, offsetIndex) => {
+        meta.set(edgeId, { offsetIndex, totalEdges });
+      });
+    }
+
+    return meta;
   }, [edges]);
 
   const activeConnectorHandleIds = useMemo(() => {
@@ -291,13 +389,21 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
         node.position.y > worldViewportBounds.maxY
       );
 
-      if (intersects || selectedNodeIds.includes(node.id) || pendingConnection?.nodeId === node.id) {
+      if (intersects || selectedNodeSet.has(node.id) || pendingConnection?.nodeId === node.id) {
         visibleIds.add(node.id);
       }
     }
 
     return visibleIds;
-  }, [pendingConnection?.nodeId, presentableNodes, selectedNodeIds, worldViewportBounds.maxX, worldViewportBounds.maxY, worldViewportBounds.minX, worldViewportBounds.minY]);
+  }, [
+    pendingConnection?.nodeId,
+    presentableNodes,
+    selectedNodeSet,
+    worldViewportBounds.maxX,
+    worldViewportBounds.maxY,
+    worldViewportBounds.minX,
+    worldViewportBounds.minY
+  ]);
 
   const renderedNodes = useMemo(
     () => presentableNodes.filter((node) => visibleNodeIds.has(node.id)),
@@ -318,8 +424,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     [edges, nodeById, selectedEdgeId, visibleNodeIds]
   );
 
-  const selectedNodeSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
-
   const selectedConnectedEdgeIds = useMemo(() => {
     const ids = new Set<string>();
     if (selectedNodeIds.length === 0) return ids;
@@ -337,11 +441,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     () => (pendingConnection ? nodeById.get(pendingConnection.nodeId) || null : null),
     [nodeById, pendingConnection]
   );
-
-  const pendingTargetCount = useMemo(() => {
-    if (!pendingConnection) return 0;
-    return presentableNodes.filter((node) => node.id !== pendingConnection.nodeId).length;
-  }, [pendingConnection, presentableNodes]);
 
   const startPanning = useCallback((clientX: number, clientY: number) => {
     setPendingConnection(null);
@@ -419,6 +518,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
 
     if (activeTool === 'draw') {
       if (clickedNode) {
+        if (clickedNode.data?.isLocked) {
+          setPendingConnection(null);
+          return;
+        }
         const resolution = resolvePendingConnectionFromNodeClick(
           nodes,
           pendingConnection,
@@ -470,6 +573,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
 
   const processMouseMove = useCallback(
     (clientX: number, clientY: number, altKey: boolean) => {
+      lastPointerClientRef.current = { x: clientX, y: clientY };
       const worldPos = screenToWorld(clientX, clientY);
       setPointerWorld(worldPos);
       onPointerWorldChange?.(worldPos);
@@ -589,7 +693,30 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     });
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (event?: React.MouseEvent) => {
+    if (event) {
+      lastPointerClientRef.current = { x: event.clientX, y: event.clientY };
+    }
+
+    if (isPortDragActive && pendingConnection) {
+      const dropPoint = event
+        ? { x: event.clientX, y: event.clientY }
+        : lastPointerClientRef.current;
+      if (dropPoint) {
+        const dropTarget = resolveDropConnectionTarget(dropPoint.x, dropPoint.y, pendingConnection);
+        if (dropTarget && dropTarget.nodeId !== pendingConnection.nodeId) {
+          onConnect(
+            pendingConnection.nodeId,
+            dropTarget.nodeId,
+            pendingConnection.portIdx,
+            dropTarget.portIdx
+          );
+        }
+      }
+      setIsPortDragActive(false);
+      setPendingConnection(null);
+    }
+
     if (pointerMoveRafRef.current !== null) {
       window.cancelAnimationFrame(pointerMoveRafRef.current);
       pointerMoveRafRef.current = null;
@@ -625,37 +752,71 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     onPointerWorldChange?.(null);
   };
 
-  const handlePortClick = (nodeId: string, portIdx: number) => {
-    if (activeTool !== 'draw') return;
+  const handlePortClick = useCallback(
+    (nodeId: string, portIdx: number, role: PortRole) => {
+      const canUseConnect = activeTool === 'draw' || pendingConnection !== null;
+      if (!canUseConnect) return;
+      if (nodeById.get(nodeId)?.data?.isLocked) return;
+      const canStartConnection = role === 'source' || role === 'both';
+      const canCompleteConnection = role === 'target' || role === 'both';
 
-    if (!pendingConnection) {
-      setPendingConnection({ nodeId, portIdx });
-      return;
-    }
+      if (!pendingConnection) {
+        if (activeTool !== 'draw') return;
+        if (!canStartConnection) return;
+        setPendingConnection({ nodeId, portIdx });
+        return;
+      }
 
-    if (pendingConnection.nodeId !== nodeId) {
-      onConnect(pendingConnection.nodeId, nodeId, pendingConnection.portIdx, portIdx);
-    }
+      if (nodeById.get(pendingConnection.nodeId)?.data?.isLocked) {
+        setPendingConnection(null);
+        return;
+      }
 
-    setPendingConnection(null);
-  };
+      if (pendingConnection.nodeId === nodeId) {
+        if (canStartConnection) {
+          setPendingConnection({ nodeId, portIdx });
+          return;
+        }
+        setPendingConnection(null);
+        return;
+      }
 
-  const handleNodeConnectClick = (event: React.MouseEvent, nodeId: string) => {
-    if (activeTool !== 'draw') return;
-    const world = screenToWorld(event.clientX, event.clientY);
-    const resolution = resolvePendingConnectionFromNodeClick(nodes, pendingConnection, nodeId, world);
+      if (canCompleteConnection) {
+        onConnect(pendingConnection.nodeId, nodeId, pendingConnection.portIdx, portIdx);
+        setIsPortDragActive(false);
+        setPendingConnection(null);
+        return;
+      }
 
-    if (resolution.edgeToCreate) {
-      onConnect(
-        resolution.edgeToCreate.sourceId,
-        resolution.edgeToCreate.targetId,
-        resolution.edgeToCreate.sourcePortIdx,
-        resolution.edgeToCreate.targetPortIdx
-      );
-    }
+      if (canStartConnection) {
+        setPendingConnection({ nodeId, portIdx });
+      }
+    },
+    [activeTool, nodeById, onConnect, pendingConnection]
+  );
 
-    setPendingConnection(resolution.nextPending);
-  };
+  const handleNodeConnectClick = useCallback(
+    (event: React.MouseEvent, nodeId: string) => {
+      const canUseConnect = activeTool === 'draw' || pendingConnection !== null;
+      if (!canUseConnect) return;
+      if (nodeById.get(nodeId)?.data?.isLocked) return;
+      if (!pendingConnection && activeTool !== 'draw') return;
+      const world = screenToWorld(event.clientX, event.clientY);
+      const resolution = resolvePendingConnectionFromNodeClick(nodes, pendingConnection, nodeId, world);
+
+      if (resolution.edgeToCreate) {
+        onConnect(
+          resolution.edgeToCreate.sourceId,
+          resolution.edgeToCreate.targetId,
+          resolution.edgeToCreate.sourcePortIdx,
+          resolution.edgeToCreate.targetPortIdx
+        );
+      }
+
+      setPendingConnection(resolution.nextPending);
+    },
+    [activeTool, nodeById, nodes, onConnect, pendingConnection, screenToWorld]
+  );
 
   useEffect(() => {
     if (activeTool !== 'draw' && pendingConnection) {
@@ -726,6 +887,122 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     }
   };
 
+  const handleEdgeSelect = useCallback(
+    (id: string) => {
+      onSelectEdge(id);
+      onOpenInspector();
+    },
+    [onOpenInspector, onSelectEdge]
+  );
+
+  const handleNodeMouseDown = useCallback(
+    (event: React.MouseEvent, id: string) => {
+      if (event.button !== 0 || isSpacePressed) return;
+      event.stopPropagation();
+      const clickedNode = nodeById.get(id);
+      const isLockedNode = !!clickedNode?.data?.isLocked;
+
+      if (activeTool === 'draw') {
+        if (isLockedNode) {
+          setPendingConnection(null);
+          return;
+        }
+        handleNodeConnectClick(event, id);
+        return;
+      }
+
+      if (activeTool !== 'select') return;
+
+      if (event.shiftKey) {
+        if (selectedNodeSet.has(id)) {
+          onSelectNodes(selectedNodeIds.filter((candidate) => candidate !== id));
+        } else {
+          onSelectNodes([...selectedNodeIds, id]);
+        }
+        onSelectEdge(null);
+        onOpenInspector();
+        return;
+      }
+
+      const dragIds = selectedNodeSet.has(id) && selectedNodeIds.length > 0 ? selectedNodeIds : [id];
+      onSelectNodes(dragIds);
+      onSelectEdge(null);
+      onOpenInspector();
+
+      if (isLockedNode) {
+        setDraggingNodes(null);
+        return;
+      }
+
+      const movableIds = dragIds.filter((nodeId) => !nodeById.get(nodeId)?.data?.isLocked);
+      if (movableIds.length === 0) {
+        setDraggingNodes(null);
+        return;
+      }
+
+      const worldPos = screenToWorld(event.clientX, event.clientY);
+      const initialPositions: Record<string, Position> = {};
+      for (const nodeId of movableIds) {
+        const currentNode = nodeById.get(nodeId);
+        if (!currentNode) continue;
+        initialPositions[nodeId] = { ...currentNode.position };
+      }
+
+      setDraggingNodes({
+        ids: movableIds,
+        pointerStart: worldPos,
+        initialPositions
+      });
+      setHasRecordedDragHistory(false);
+    },
+    [
+      activeTool,
+      handleNodeConnectClick,
+      isSpacePressed,
+      nodeById,
+      onOpenInspector,
+      onSelectEdge,
+      onSelectNodes,
+      screenToWorld,
+      selectedNodeIds,
+      selectedNodeSet
+    ]
+  );
+
+  const handleNodeClick = useCallback(
+    (event: React.MouseEvent, id: string) => {
+      event.stopPropagation();
+      if (activeTool === 'draw') return;
+      if (!pendingConnection) return;
+      handleNodeConnectClick(event, id);
+    },
+    [activeTool, handleNodeConnectClick, pendingConnection]
+  );
+
+  const handleNodePortClick = useCallback(
+    (event: React.MouseEvent, id: string, portIdx: number, role: PortRole) => {
+      event.stopPropagation();
+      handlePortClick(id, portIdx, role);
+    },
+    [handlePortClick]
+  );
+
+  const handleNodePortMouseDown = useCallback(
+    (event: React.MouseEvent, id: string, portIdx: number, role: PortRole) => {
+      event.stopPropagation();
+      if (activeTool !== 'draw') return;
+      if (role !== 'source' && role !== 'both') return;
+      if (nodeById.get(id)?.data?.isLocked) return;
+      const world = screenToWorld(event.clientX, event.clientY);
+      setPendingConnection({ nodeId: id, portIdx });
+      setIsPortDragActive(true);
+      lastPointerClientRef.current = { x: event.clientX, y: event.clientY };
+      setPointerWorld(world);
+      onPointerWorldChange?.(world);
+    },
+    [activeTool, nodeById, onPointerWorldChange, screenToWorld]
+  );
+
   const selectionRect = selectionMarquee
     ? {
         left: Math.min(selectionMarquee.start.x, selectionMarquee.current.x) * viewport.zoom + viewport.x,
@@ -735,6 +1012,42 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
       }
     : null;
 
+  const selectedNodeForToolbar = useMemo(() => {
+    if (isMobileViewport || activeTool !== 'select') return null;
+    if (selectedEdgeId || selectedNodeIds.length !== 1) return null;
+    const selectedNode = nodeById.get(selectedNodeIds[0]);
+    if (!selectedNode || selectedNode.isConnectorHandle) return null;
+    return selectedNode;
+  }, [activeTool, isMobileViewport, nodeById, selectedEdgeId, selectedNodeIds]);
+
+  const nodeToolbarAnchor = useMemo(() => {
+    if (!selectedNodeForToolbar) return null;
+    const { width } = getNodeDimensions(selectedNodeForToolbar);
+    const rawX = (selectedNodeForToolbar.position.x + width / 2) * viewport.zoom + viewport.x;
+    const rawY = selectedNodeForToolbar.position.y * viewport.zoom + viewport.y - 10;
+    const minX = 86;
+    const maxX = Math.max(minX, (canvasSize.width || 0) - 86);
+    const clampedX = Math.max(minX, Math.min(maxX, rawX));
+    const clampedY = Math.max(52, rawY);
+    return { x: clampedX, y: clampedY };
+  }, [canvasSize.width, selectedNodeForToolbar, viewport.x, viewport.y, viewport.zoom]);
+
+  const handleStartConnectFromSelectedNode = useCallback(() => {
+    if (!selectedNodeForToolbar || selectedNodeForToolbar.data?.isLocked) return;
+    const { sourcePorts } = getNodeHandlePortConfig(selectedNodeForToolbar);
+    const sourcePortIdx = sourcePorts[0] ?? 1;
+    const armConnection = () => {
+      setPendingConnection({ nodeId: selectedNodeForToolbar.id, portIdx: sourcePortIdx });
+      setIsPortDragActive(false);
+    };
+    if (activeTool !== 'draw') {
+      onActivateConnectTool();
+      window.requestAnimationFrame(armConnection);
+      return;
+    }
+    armConnection();
+  }, [activeTool, onActivateConnectTool, selectedNodeForToolbar]);
+
   return (
     <div
       ref={containerRef}
@@ -743,14 +1056,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
       } ${
         activeTool === 'draw'
           ? isDarkMode
-            ? 'ring-1 ring-sky-300/35'
-            : 'ring-1 ring-sky-500/35'
+            ? 'ring-1 ring-accent/35'
+            : 'ring-1 ring-accent/30'
           : ''
       }`}
       style={{
         background: isDarkMode
-          ? 'radial-gradient(1200px circle at 14% 0%, #1e2b42 0%, #152033 44%, #0f1727 100%)'
-          : 'radial-gradient(1000px circle at 12% 0%, #ffffff 0%, #f7fbff 44%, #edf3f9 100%)'
+          ? 'radial-gradient(1100px circle at 14% 0%, rgba(79,70,229,0.12) 0%, transparent 56%), var(--ff-surface-canvas)'
+          : 'radial-gradient(900px circle at 12% 0%, rgba(79,70,229,0.08) 0%, transparent 54%), var(--ff-surface-canvas)'
       }}
       onMouseDown={handleCanvasMouseDown}
       onMouseMove={handleMouseMove}
@@ -758,49 +1071,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
     >
-      {activeTool === 'draw' ? (
-        <div
-          className={`pointer-events-none absolute left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-1.5 text-[11px] font-medium shadow-sm ${
-            isDarkMode
-              ? 'border-sky-300/35 bg-slate-900/90 text-sky-100'
-              : 'border-sky-200 bg-white/95 text-sky-900'
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          <span className="inline-flex items-center gap-1 rounded-md bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-600 dark:text-sky-200">
-            Connect mode
-          </span>
-          {pendingConnection ? (
-            <>
-              <span>
-                Source: <strong>{pendingSourceNode?.label || 'Node'}</strong> - choose target ({pendingTargetCount} available)
-              </span>
-              <button
-                type="button"
-                data-testid="cancel-pending-connection"
-                className={`pointer-events-auto rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
-                  isDarkMode
-                    ? 'border-sky-400/40 bg-sky-500/20 text-sky-100 hover:bg-sky-500/30'
-                    : 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100'
-                }`}
-                onMouseDown={(evt) => evt.stopPropagation()}
-                onClick={(evt) => {
-                  evt.stopPropagation();
-                  setPendingConnection(null);
-                }}
-                aria-label="Cancel pending connection"
-                title="Cancel pending connection"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <span>Click source node or port, then click target.</span>
-          )}
-        </div>
-      ) : null}
-
       <div
         ref={exportLayerRef}
         className="absolute inset-0"
@@ -838,8 +1108,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
             const source = nodeById.get(edge.sourceId);
             const target = nodeById.get(edge.targetId);
             if (!source || !target) return null;
-
-            const key = [edge.sourceId, edge.targetId].sort().join('-');
+            const offsetMeta = edgeOffsetMeta.get(edge.id) || { offsetIndex: 0, totalEdges: 1 };
 
             return (
               <DiagramEdgePath
@@ -851,12 +1120,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
                 isDimmed={selectedNodeIds.length > 0 && !selectedConnectedEdgeIds.has(edge.id)}
                 isDarkMode={isDarkMode}
                 showLabelAtZoom={lodState.showEdgeLabels}
-                onSelect={(id) => {
-                  onSelectEdge(id);
-                  onOpenInspector();
-                }}
-                offsetIndex={edgeGroups[key].indexOf(edge.id)}
-                totalEdges={edgeGroups[key].length}
+                onSelect={handleEdgeSelect}
+                offsetIndex={offsetMeta.offsetIndex}
+                totalEdges={offsetMeta.totalEdges}
               />
             );
           })}
@@ -899,9 +1165,11 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
             compactMode={lodState.compactNodes}
             showBodyMeta={lodState.showNodeMeta}
             showFooter={lodState.showNodeFooter}
-            isSelected={selectedNodeIds.includes(node.id)}
+            isSelected={selectedNodeSet.has(node.id)}
             isDarkMode={isDarkMode}
-            showPorts={showPorts && activeTool === 'draw'}
+            pinnedAttributes={pinnedNodeAttributes}
+            showPorts={showPorts}
+            isConnectToolActive={activeTool === 'draw'}
             connectState={
               activeTool === 'draw'
                 ? pendingConnection?.nodeId === node.id
@@ -911,55 +1179,11 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
                     : 'idle'
                 : 'idle'
             }
-            onMouseDown={(event, id) => {
-              if (event.button !== 0 || isSpacePressed) return;
-              event.stopPropagation();
-              if (activeTool === 'draw') {
-                handleNodeConnectClick(event, id);
-                return;
-              }
-              if (activeTool !== 'select') return;
-
-              if (event.shiftKey) {
-                if (selectedNodeIds.includes(id)) {
-                  onSelectNodes(selectedNodeIds.filter((candidate) => candidate !== id));
-                } else {
-                  onSelectNodes([...selectedNodeIds, id]);
-                }
-                onSelectEdge(null);
-                return;
-              }
-
-              const dragIds =
-                selectedNodeIds.includes(id) && selectedNodeIds.length > 0 ? selectedNodeIds : [id];
-
-              onSelectNodes(dragIds);
-              onSelectEdge(null);
-
-              const worldPos = screenToWorld(event.clientX, event.clientY);
-              const initialPositions: Record<string, Position> = {};
-              for (const nodeId of dragIds) {
-                const currentNode = nodeById.get(nodeId);
-                if (!currentNode) continue;
-                initialPositions[nodeId] = { ...currentNode.position };
-              }
-
-              setDraggingNodes({
-                ids: dragIds,
-                pointerStart: worldPos,
-                initialPositions
-              });
-              setHasRecordedDragHistory(false);
-            }}
-            onClick={(event, id) => {
-              event.stopPropagation();
-              if (activeTool === 'draw') return;
-              handleNodeConnectClick(event, id);
-            }}
-            onPortClick={(event, id, portIdx) => {
-              event.stopPropagation();
-              handlePortClick(id, portIdx);
-            }}
+            isConnecting={activeTool === 'draw'}
+            onMouseDown={handleNodeMouseDown}
+            onClick={handleNodeClick}
+            onPortMouseDown={handleNodePortMouseDown}
+            onPortClick={handleNodePortClick}
           />
         ))}
       </div>
@@ -973,6 +1197,18 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
         />
       ) : null}
 
+      {nodeToolbarAnchor ? (
+        <NodeContextToolbar
+          anchor={nodeToolbarAnchor}
+          onDelete={onDeleteSelection}
+          onDuplicate={onDuplicateSelection}
+          onRename={onRenameSelection}
+          onConnect={handleStartConnectFromSelectedNode}
+          onToggleQuickAttribute={onToggleQuickAttribute}
+          isQuickAttributePinned={isQuickAttributePinned}
+        />
+      ) : null}
+
       {showMinimap ? (
         <MiniMapPanel
           nodes={presentableNodes}
@@ -981,6 +1217,36 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
           isDarkMode={isDarkMode}
           onViewportChange={onViewportChange}
         />
+      ) : null}
+
+      {activeTool === 'draw' ? (
+        <div className="ff-mode-chip" role="status" aria-live="polite">
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
+          <strong>Connect</strong>
+          {pendingConnection ? (
+            <>
+              <span className="truncate">
+                {pendingSourceNode?.label || 'Source locked'} to target
+              </span>
+              <button
+                type="button"
+                data-testid="cancel-pending-connection"
+                className="status-chip !h-6 !px-2 !text-[10px]"
+                onMouseDown={(evt) => evt.stopPropagation()}
+                onClick={(evt) => {
+                  evt.stopPropagation();
+                  setPendingConnection(null);
+                }}
+                aria-label="Cancel pending connection"
+                title="Cancel pending connection"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <span className="opacity-90">Drag handle or source then target · Esc</span>
+          )}
+        </div>
       ) : null}
     </div>
   );

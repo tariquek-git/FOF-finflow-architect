@@ -1,15 +1,15 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Bot, Sparkles, X } from 'lucide-react';
 import FlowCanvas from './components/FlowCanvas';
 import Sidebar from './components/Sidebar';
-import Inspector, { type InspectorTab } from './components/Inspector';
+import Inspector from './components/Inspector';
 import TopBar from './components/layout/TopBar';
+import CommandPalette, { type CommandAction } from './components/layout/CommandPalette';
 import FloatingContextBar from './components/layout/FloatingContextBar';
 import ShortcutsModal from './components/help/ShortcutsModal';
 import {
   Node,
-  AccountType,
   Edge,
   EntityType,
   PaymentRail,
@@ -21,25 +21,37 @@ import {
   DiagramSnapshot,
   LayoutSettings,
   ExportPayloadV2,
-  LaneGroupingMode
+  LaneGroupingMode,
+  WorkspaceSummary
 } from './types';
 import { useUIStore } from './stores/uiStore';
 import {
   cloneSnapshot,
+  GRAPH_SCHEMA_VERSION,
   createExportPayload,
+  hasStorageValue,
+  loadLatestDiagramBackup,
   loadDiagramFromStorage,
   loadLayoutFromStorage,
   parseImportPayload,
+  persistDiagramBackup,
   persistDiagramToStorage,
-  persistLayoutToStorage
+  persistLayoutToStorage,
+  WORKSPACE_EXPORT_SCHEMA_VERSION
 } from './lib/diagramIO';
 import { downloadPdfExport, downloadPngExport, downloadSvgExport } from './lib/exportAssets';
+import { SWIMLANE_HEIGHT } from './components/canvas/canvasGeometry';
+import {
+  normalizeNodeAccountType,
+  resolveNodeScale,
+  resolveNodeShape,
+  withNodeDataDefaults
+} from './lib/nodeDisplay';
 
-const STORAGE_KEY = 'finflow-builder.diagram.v1';
-const LAYOUT_STORAGE_KEY = 'finflow-builder.layout.v1';
-const RECOVERY_STORAGE_KEY = 'finflow-builder.recovery.diagram.v1';
-const RECOVERY_LAYOUT_STORAGE_KEY = 'finflow-builder.recovery.layout.v1';
-const RECOVERY_META_STORAGE_KEY = 'finflow-builder.recovery.meta.v1';
+const WORKSPACE_INDEX_STORAGE_KEY = 'fof:workspaces:index';
+const ACTIVE_WORKSPACE_STORAGE_KEY = 'fof:active-workspace-id';
+const WORKSPACE_STORAGE_PREFIX = 'fof:workspace';
+const DEFAULT_WORKSPACE_NAME = 'My Diagram';
 const HISTORY_LIMIT = 100;
 const MOBILE_BREAKPOINT = 1024;
 const CONNECTOR_DEFAULT_LENGTH = 220;
@@ -47,11 +59,98 @@ const CONNECTOR_HANDLE_HALF = 8;
 const CONNECTOR_DRAG_TYPE = 'application/finflow/tool';
 const CONNECTOR_DRAG_VALUE = 'connector';
 const ONBOARDING_DISMISSED_STORAGE_KEY = 'finflow-builder.quickstart.dismissed.v1';
+const SIDEBAR_WIDTH_STORAGE_KEY = 'finflow-builder.layout.sidebar-width.v1';
+const INSPECTOR_WIDTH_STORAGE_KEY = 'finflow-builder.layout.inspector-width.v1';
+const CONNECT_HINT_STORAGE_KEY = 'finflow-builder.connect-hint.dismissed.v1';
+const SNAP_TO_GRID_STORAGE_KEY = 'finflow-builder.layout.snap-to-grid.v1';
+const MINIMAP_STORAGE_KEY = 'finflow-builder.layout.minimap.v1';
+const THEME_STORAGE_KEY = 'finflow-builder.layout.theme.v1';
 const TOAST_TIMEOUT_MS = 4200;
+const DEFAULT_SIDEBAR_WIDTH = 320;
+const MIN_SIDEBAR_WIDTH = 248;
+const MAX_SIDEBAR_WIDTH = 440;
+const COLLAPSED_SIDEBAR_WIDTH = 62;
+const DEFAULT_INSPECTOR_WIDTH = 360;
+const MIN_INSPECTOR_WIDTH = 320;
+const MAX_INSPECTOR_WIDTH = 520;
 
 const createId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const createWorkspaceId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `ws-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+const getWorkspaceShortId = (workspaceId: string) => workspaceId.slice(-6).toUpperCase();
+const getWorkspaceStorageKey = (workspaceId: string) => `${WORKSPACE_STORAGE_PREFIX}:${workspaceId}`;
+const getWorkspaceLayoutStorageKey = (workspaceId: string) =>
+  `${WORKSPACE_STORAGE_PREFIX}:${workspaceId}:layout`;
+const getWorkspaceRecoveryStorageKey = (workspaceId: string) =>
+  `${WORKSPACE_STORAGE_PREFIX}:${workspaceId}:recovery`;
+const getWorkspaceRecoveryLayoutStorageKey = (workspaceId: string) =>
+  `${WORKSPACE_STORAGE_PREFIX}:${workspaceId}:recovery:layout`;
+const getWorkspaceRecoveryMetaStorageKey = (workspaceId: string) =>
+  `${WORKSPACE_STORAGE_PREFIX}:${workspaceId}:recovery:meta`;
+const getWorkspaceBackupStorageKey = (workspaceId: string, timestamp: string) =>
+  `${WORKSPACE_STORAGE_PREFIX}:${workspaceId}:backup:${timestamp}`;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseWorkspaceSummary = (value: unknown): WorkspaceSummary | null => {
+  if (!isRecord(value)) return null;
+  const workspaceId = typeof value.workspaceId === 'string' ? value.workspaceId : '';
+  const name = typeof value.name === 'string' ? value.name : '';
+  const createdAt = typeof value.createdAt === 'string' ? value.createdAt : '';
+  const updatedAt = typeof value.updatedAt === 'string' ? value.updatedAt : '';
+  const lastOpenedAt = typeof value.lastOpenedAt === 'string' ? value.lastOpenedAt : '';
+  if (!workspaceId || !name) return null;
+  if (Number.isNaN(Date.parse(createdAt)) || Number.isNaN(Date.parse(updatedAt)) || Number.isNaN(Date.parse(lastOpenedAt))) {
+    return null;
+  }
+  return { workspaceId, name, createdAt, updatedAt, lastOpenedAt };
+};
+
+const sortWorkspacesByRecent = (workspaces: WorkspaceSummary[]) =>
+  [...workspaces].sort((a, b) => Date.parse(b.lastOpenedAt) - Date.parse(a.lastOpenedAt));
+
+const loadWorkspaceIndex = (): WorkspaceSummary[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(WORKSPACE_INDEX_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return sortWorkspacesByRecent(
+      parsed
+        .map(parseWorkspaceSummary)
+        .filter((workspace): workspace is WorkspaceSummary => !!workspace)
+    );
+  } catch {
+    return [];
+  }
+};
+
+const persistWorkspaceIndex = (workspaces: WorkspaceSummary[]): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    window.localStorage.setItem(
+      WORKSPACE_INDEX_STORAGE_KEY,
+      JSON.stringify(sortWorkspacesByRecent(workspaces))
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const upsertWorkspaceSummary = (workspaces: WorkspaceSummary[], nextWorkspace: WorkspaceSummary) => {
+  const withoutCurrent = workspaces.filter((workspace) => workspace.workspaceId !== nextWorkspace.workspaceId);
+  return sortWorkspacesByRecent([nextWorkspace, ...withoutCurrent]);
+};
 
 const STARTER_SNAPSHOT: DiagramSnapshot = {
+  schemaVersion: 2,
   nodes: [
     {
       id: 'starter-sponsor',
@@ -173,10 +272,48 @@ const pruneOrphanConnectorHandles = (allNodes: Node[], allEdges: Edge[]): Node[]
 };
 
 const getNodeDimensions = (node: Node) => {
-  const width =
-    node.width || (node.shape === NodeShape.CIRCLE ? 80 : node.shape === NodeShape.DIAMOND ? 100 : 180);
-  const height =
-    node.height || (node.shape === NodeShape.CIRCLE ? 80 : node.shape === NodeShape.DIAMOND ? 100 : 60);
+  const shape = resolveNodeShape(node);
+  const scale = resolveNodeScale(node);
+  const defaultWidth =
+    shape === NodeShape.CIRCLE
+      ? 88
+      : shape === NodeShape.SQUARE
+        ? 92
+        : shape === NodeShape.DIAMOND
+          ? 108
+          : shape === NodeShape.PILL
+            ? 212
+            : shape === NodeShape.ROUNDED_RECTANGLE
+              ? 188
+              : shape === NodeShape.CYLINDER
+                ? 190
+                : 180;
+  const defaultHeight =
+    shape === NodeShape.CIRCLE
+      ? 88
+      : shape === NodeShape.SQUARE
+        ? 92
+        : shape === NodeShape.DIAMOND
+          ? 108
+          : shape === NodeShape.PILL
+            ? 64
+            : shape === NodeShape.ROUNDED_RECTANGLE
+              ? 68
+              : shape === NodeShape.CYLINDER
+                ? 72
+                : 60;
+
+  let width = node.width || defaultWidth;
+  let height = node.height || defaultHeight;
+
+  if (shape === NodeShape.SQUARE || shape === NodeShape.CIRCLE) {
+    const side = Math.max(width, height);
+    width = side;
+    height = side;
+  }
+
+  width = Math.round(width * scale);
+  height = Math.round(height * scale);
   return { width, height };
 };
 
@@ -220,6 +357,23 @@ const getLaneLabelsForMode = (mode: LaneGroupingMode): string[] => {
     return ['Customer Accounts', 'Omnibus / FBO', 'Settlement / Reserve', 'Treasury & Control'];
   }
   return [];
+};
+
+const inferLaneFromRegionText = (label: string, description?: string): number | null => {
+  const text = `${label} ${description || ''}`.toLowerCase();
+  if (!text.trim()) return null;
+
+  const northAmericaSignals = ['north america', 'na', 'usa', 'us', 'canada'];
+  const emeaSignals = ['emea', 'europe', 'eu', 'uk', 'sepa', 'middle east', 'africa'];
+  const apacSignals = ['apac', 'asia', 'australia', 'new zealand', 'japan', 'singapore', 'india'];
+  const latamSignals = ['latam', 'latin america', 'mexico', 'brazil', 'argentina', 'colombia', 'chile'];
+
+  if (northAmericaSignals.some((signal) => text.includes(signal))) return 1;
+  if (emeaSignals.some((signal) => text.includes(signal))) return 2;
+  if (apacSignals.some((signal) => text.includes(signal))) return 3;
+  if (latamSignals.some((signal) => text.includes(signal))) return 4;
+
+  return null;
 };
 
 const getLaneIdForNode = (node: Node, mode: LaneGroupingMode): number | undefined => {
@@ -278,22 +432,50 @@ const getLaneIdForNode = (node: Node, mode: LaneGroupingMode): number | undefine
   }
 
   if (mode === 'geography') {
-    return 1;
+    const inferredByText = inferLaneFromRegionText(node.label, node.description);
+    if (inferredByText) return inferredByText;
+
+    if (
+      node.type === EntityType.SPONSOR_BANK ||
+      node.type === EntityType.ISSUING_BANK ||
+      node.type === EntityType.ACQUIRING_BANK ||
+      node.type === EntityType.CENTRAL_BANK ||
+      node.type === EntityType.CREDIT_UNION ||
+      node.type === EntityType.CORRESPONDENT_BANK
+    ) {
+      return 1;
+    }
+
+    if (
+      node.type === EntityType.PROCESSOR ||
+      node.type === EntityType.NETWORK ||
+      node.type === EntityType.GATEWAY ||
+      node.type === EntityType.SWITCH
+    ) {
+      return 2;
+    }
+
+    if (
+      node.type === EntityType.PROGRAM_MANAGER ||
+      node.type === EntityType.WALLET_PROVIDER
+    ) {
+      return 3;
+    }
+
+    return 4;
   }
 
   if (mode === 'ledger') {
-    if (node.accountType === undefined || node.accountType === null) {
+    const accountType = normalizeNodeAccountType(node.data?.accountType, node.accountType);
+    if (!accountType) {
       if (node.type === EntityType.END_POINT) return 1;
       if (node.type === EntityType.LIQUIDITY_PROVIDER) return 4;
       return 1;
     }
-    if (node.accountType === AccountType.FBO || node.accountType === AccountType.TREASURY) {
+    if (accountType === 'FBO' || accountType === 'Ledger') {
       return 2;
     }
-    if (
-      node.accountType === AccountType.SETTLEMENT ||
-      node.accountType === AccountType.RESERVE
-    ) {
+    if (accountType === 'Settlement' || accountType === 'Reserve') {
       return 3;
     }
     if (node.type === EntityType.LIQUIDITY_PROVIDER || node.type === EntityType.GATE) {
@@ -312,6 +494,12 @@ type ToastMessage = {
   tone: ToastTone;
   text: string;
 };
+type SaveStatusState = 'saving' | 'saved' | 'error';
+type SaveStatus = {
+  state: SaveStatusState;
+  savedAt: string | null;
+  errorText: string | null;
+};
 type RecoveryMeta = {
   lastSavedAt: string;
 };
@@ -325,9 +513,10 @@ const parseRecoveryMeta = (value: unknown): RecoveryMeta | null => {
   return { lastSavedAt: candidate.lastSavedAt };
 };
 
-const loadRecoveryMeta = (): RecoveryMeta | null => {
+const loadRecoveryMeta = (storageKey: string): RecoveryMeta | null => {
+  if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(RECOVERY_META_STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return null;
     return parseRecoveryMeta(JSON.parse(raw));
   } catch {
@@ -335,9 +524,10 @@ const loadRecoveryMeta = (): RecoveryMeta | null => {
   }
 };
 
-const persistRecoveryMeta = (meta: RecoveryMeta): boolean => {
+const persistRecoveryMeta = (storageKey: string, meta: RecoveryMeta): boolean => {
+  if (typeof window === 'undefined') return false;
   try {
-    window.localStorage.setItem(RECOVERY_META_STORAGE_KEY, JSON.stringify(meta));
+    window.localStorage.setItem(storageKey, JSON.stringify(meta));
     return true;
   } catch {
     return false;
@@ -354,6 +544,54 @@ const formatBackupTimestamp = (iso: string | null): string | null => {
     hour: 'numeric',
     minute: '2-digit'
   });
+};
+
+const formatSavedTimestamp = (iso: string | null): string | null => {
+  if (!iso) return null;
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) return null;
+  return new Date(parsed).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+};
+
+const clampValue = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const loadStoredPanelWidth = (
+  key: string,
+  fallback: number,
+  min: number,
+  max: number
+) => {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return fallback;
+    return clampValue(parsed, min, max);
+  } catch {
+    return fallback;
+  }
+};
+
+const loadStoredThemePreference = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(THEME_STORAGE_KEY) === 'dark';
+  } catch {
+    return false;
+  }
+};
+
+const persistStoredThemePreference = (isDarkMode: boolean): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, isDarkMode ? 'dark' : 'light');
+  } catch {
+    // Ignore storage write errors for theme preference.
+  }
 };
 
 const shouldRecordEditHistory = (
@@ -377,10 +615,18 @@ const isEditableTarget = (target: EventTarget | null): target is HTMLElement => 
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 };
 
+const logDevError = (...args: unknown[]) => {
+  if (import.meta.env.DEV) {
+    console.error(...args);
+  }
+};
+
 const App: React.FC = () => {
   const isAIEnabled = import.meta.env.VITE_ENABLE_AI === 'true';
   const feedbackHref = (import.meta.env.VITE_FEEDBACK_URL as string) || 'mailto:feedback@finflow.app';
   // --- STATE ---
+  const [workspaceIndex, setWorkspaceIndex] = useState<WorkspaceSummary[]>([]);
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceSummary | null>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [drawings, setDrawings] = useState<DrawingPath[]>([]);
@@ -393,8 +639,32 @@ const App: React.FC = () => {
     typeof window !== 'undefined' ? window.innerWidth >= MOBILE_BREAKPOINT : true
   );
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(() =>
+    loadStoredPanelWidth(
+      SIDEBAR_WIDTH_STORAGE_KEY,
+      DEFAULT_SIDEBAR_WIDTH,
+      MIN_SIDEBAR_WIDTH,
+      MAX_SIDEBAR_WIDTH
+    )
+  );
+  const [inspectorWidth, setInspectorWidth] = useState(() =>
+    loadStoredPanelWidth(
+      INSPECTOR_WIDTH_STORAGE_KEY,
+      DEFAULT_INSPECTOR_WIDTH,
+      MIN_INSPECTOR_WIDTH,
+      MAX_INSPECTOR_WIDTH
+    )
+  );
+  const [activeResizePanel, setActiveResizePanel] = useState<null | 'sidebar' | 'inspector'>(null);
+  const [isDarkMode, setIsDarkMode] = useState(() => loadStoredThemePreference());
+  const [snapToGrid, setSnapToGrid] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      return window.localStorage.getItem(SNAP_TO_GRID_STORAGE_KEY) !== 'false';
+    } catch {
+      return true;
+    }
+  });
   const showPorts = useUIStore((state) => state.showPorts);
   const setShowPorts = useUIStore((state) => state.setShowPorts);
   const toggleShowPorts = useUIStore((state) => state.toggleShowPorts);
@@ -403,15 +673,14 @@ const App: React.FC = () => {
   const toggleShowSwimlanes = useUIStore((state) => state.toggleShowSwimlanes);
   const swimlaneLabels = useUIStore((state) => state.swimlaneLabels);
   const setSwimlaneLabels = useUIStore((state) => state.setSwimlaneLabels);
-  const addSwimlane = useUIStore((state) => state.addSwimlane);
-  const removeSwimlane = useUIStore((state) => state.removeSwimlane);
-  const updateSwimlaneLabel = useUIStore((state) => state.updateSwimlaneLabel);
   const gridMode = useUIStore((state) => state.gridMode);
   const setGridMode = useUIStore((state) => state.setGridMode);
   const overlayMode = useUIStore((state) => state.overlayMode);
   const setOverlayMode = useUIStore((state) => state.setOverlayMode);
   const laneGroupingMode = useUIStore((state) => state.laneGroupingMode);
   const setLaneGroupingMode = useUIStore((state) => state.setLaneGroupingMode);
+  const pinnedNodeAttributes = useUIStore((state) => state.pinnedNodeAttributes);
+  const togglePinnedNodeAttribute = useUIStore((state) => state.togglePinnedNodeAttribute);
   const activeTool = useUIStore((state) => state.activeTool);
   const setActiveTool = useUIStore((state) => state.setActiveTool);
   const [aiPrompt, setAiPrompt] = useState('');
@@ -422,17 +691,44 @@ const App: React.FC = () => {
     return window.localStorage.getItem(ONBOARDING_DISMISSED_STORAGE_KEY) !== 'true';
   });
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-  const [inspectorTabRequest, setInspectorTabRequest] = useState<InspectorTab | null>(null);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [showMinimap, setShowMinimap] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem(MINIMAP_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [viewport, setViewport] = useState<ViewportTransform>({ x: 0, y: 0, zoom: 1 });
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>({
+    state: 'saved',
+    savedAt: null,
+    errorText: null
+  });
   const [hasRecoverySnapshot, setHasRecoverySnapshot] = useState(false);
   const [recoveryLastSavedAt, setRecoveryLastSavedAt] = useState<string | null>(null);
   
   // Link Attributes State
   const [activeEdgeStyle, setActiveEdgeStyle] = useState<'solid' | 'dashed' | 'dotted'>('solid');
+  const [activeEdgePathType, setActiveEdgePathType] = useState<'bezier' | 'orthogonal'>('bezier');
   const [activeArrowConfig, setActiveArrowConfig] = useState({ showArrowHead: true, showMidArrow: false });
+
+  const activeWorkspaceId = activeWorkspace?.workspaceId || '';
+  const activeWorkspaceShortId = activeWorkspaceId ? getWorkspaceShortId(activeWorkspaceId) : '------';
+  const workspaceStorageKey = activeWorkspaceId ? getWorkspaceStorageKey(activeWorkspaceId) : '';
+  const workspaceLayoutStorageKey = activeWorkspaceId ? getWorkspaceLayoutStorageKey(activeWorkspaceId) : '';
+  const workspaceRecoveryStorageKey = activeWorkspaceId
+    ? getWorkspaceRecoveryStorageKey(activeWorkspaceId)
+    : '';
+  const workspaceRecoveryLayoutStorageKey = activeWorkspaceId
+    ? getWorkspaceRecoveryLayoutStorageKey(activeWorkspaceId)
+    : '';
+  const workspaceRecoveryMetaStorageKey = activeWorkspaceId
+    ? getWorkspaceRecoveryMetaStorageKey(activeWorkspaceId)
+    : '';
 
   const [past, setPast] = useState<DiagramSnapshot[]>([]);
   const [future, setFuture] = useState<DiagramSnapshot[]>([]);
@@ -446,6 +742,7 @@ const App: React.FC = () => {
   const pendingNodePositionsRef = useRef<Record<string, Position>>({});
   const nodePositionRafRef = useRef<number | null>(null);
   const hasLoadedFromStorage = useRef(false);
+  const hasInitialAutoFitRef = useRef(false);
   const saveDiagramTimeoutRef = useRef<number | null>(null);
   const saveLayoutTimeoutRef = useRef<number | null>(null);
   const wasMobileViewportRef = useRef(isMobileViewport);
@@ -474,6 +771,20 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (activeTool !== 'draw') return;
+    try {
+      if (window.localStorage.getItem(CONNECT_HINT_STORAGE_KEY) === 'true') return;
+      pushToast(
+        'Connect mode: drag from a handle or click source then target. Press Esc to cancel.',
+        'info'
+      );
+      window.localStorage.setItem(CONNECT_HINT_STORAGE_KEY, 'true');
+    } catch {
+      // Ignore storage failures and keep the hint non-blocking.
+    }
+  }, [activeTool, pushToast]);
+
+  useEffect(() => {
     const handleResize = () => {
       setIsMobileViewport(window.innerWidth < MOBILE_BREAKPOINT);
     };
@@ -488,10 +799,57 @@ const App: React.FC = () => {
       setIsSidebarOpen(false);
       setIsInspectorOpen(false);
     } else {
-      setIsSidebarOpen(false);
+      setIsSidebarOpen(true);
     }
     wasMobileViewportRef.current = isMobileViewport;
   }, [isMobileViewport]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
+    } catch {
+      // Ignore local storage write errors for panel width preferences.
+    }
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(INSPECTOR_WIDTH_STORAGE_KEY, String(inspectorWidth));
+    } catch {
+      // Ignore local storage write errors for panel width preferences.
+    }
+  }, [inspectorWidth]);
+
+  useEffect(() => {
+    if (!activeResizePanel || isMobileViewport) return;
+
+    const handlePointerMove = (event: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (activeResizePanel === 'sidebar') {
+        const nextWidth = clampValue(event.clientX - rect.left, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH);
+        setSidebarWidth(nextWidth);
+        return;
+      }
+
+      const nextWidth = clampValue(rect.right - event.clientX, MIN_INSPECTOR_WIDTH, MAX_INSPECTOR_WIDTH);
+      setInspectorWidth(nextWidth);
+    };
+
+    const handlePointerUp = () => {
+      setActiveResizePanel(null);
+    };
+
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+    };
+  }, [activeResizePanel, isMobileViewport]);
 
   useEffect(() => {
     return () => {
@@ -501,7 +859,10 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const getCurrentSnapshot = useCallback(() => cloneSnapshot({ nodes, edges, drawings }), [nodes, edges, drawings]);
+  const getCurrentSnapshot = useCallback(
+    () => cloneSnapshot({ schemaVersion: GRAPH_SCHEMA_VERSION, nodes, edges, drawings }),
+    [nodes, edges, drawings]
+  );
 
   const getCurrentLayout = useCallback(
     (): LayoutSettings => ({
@@ -512,6 +873,29 @@ const App: React.FC = () => {
       showPorts
     }),
     [showSwimlanes, swimlaneLabels, gridMode, isDarkMode, showPorts]
+  );
+
+  const persistWorkspaceIndexState = useCallback((nextWorkspaces: WorkspaceSummary[]) => {
+    const sorted = sortWorkspacesByRecent(nextWorkspaces);
+    setWorkspaceIndex(sorted);
+    persistWorkspaceIndex(sorted);
+  }, []);
+
+  const touchWorkspaceRecord = useCallback(
+    (workspaceId: string, patch: Partial<WorkspaceSummary>) => {
+      setWorkspaceIndex((previous) => {
+        const current = previous.find((workspace) => workspace.workspaceId === workspaceId);
+        if (!current) return previous;
+        const updated = { ...current, ...patch };
+        const next = upsertWorkspaceSummary(previous, updated);
+        persistWorkspaceIndex(next);
+        return next;
+      });
+      setActiveWorkspace((previous) =>
+        previous && previous.workspaceId === workspaceId ? { ...previous, ...patch } : previous
+      );
+    },
+    []
   );
 
   const applyLayoutSettings = useCallback(
@@ -525,9 +909,6 @@ const App: React.FC = () => {
       if (layout.gridMode) {
         setGridMode(layout.gridMode);
       }
-      if (typeof layout.isDarkMode === 'boolean') {
-        setIsDarkMode(layout.isDarkMode);
-      }
       if (typeof layout.showPorts === 'boolean') {
         setShowPorts(layout.showPorts);
       }
@@ -537,7 +918,7 @@ const App: React.FC = () => {
 
   const applySnapshot = useCallback((snapshot: DiagramSnapshot) => {
     const safe = cloneSnapshot(snapshot);
-    setNodes(safe.nodes);
+    setNodes(safe.nodes.map((node) => withNodeDataDefaults(node)));
     setEdges(safe.edges);
     setDrawings(safe.drawings);
   }, []);
@@ -552,17 +933,35 @@ const App: React.FC = () => {
 
   const saveRecoverySnapshot = useCallback(
     (snapshot: DiagramSnapshot = getCurrentSnapshot(), layout: LayoutSettings = getCurrentLayout()) => {
-      const diagramSaved = persistDiagramToStorage(RECOVERY_STORAGE_KEY, snapshot);
-      const layoutSaved = persistLayoutToStorage(RECOVERY_LAYOUT_STORAGE_KEY, layout);
+      if (!workspaceRecoveryStorageKey || !workspaceRecoveryLayoutStorageKey || !workspaceRecoveryMetaStorageKey) {
+        return false;
+      }
+      const diagramSaved = persistDiagramToStorage(workspaceRecoveryStorageKey, snapshot);
+      const layoutSaved = persistLayoutToStorage(workspaceRecoveryLayoutStorageKey, layout);
+      const backupSaved = persistDiagramBackup(workspaceRecoveryStorageKey, snapshot);
       const nextMeta: RecoveryMeta = { lastSavedAt: new Date().toISOString() };
-      const metaSaved = persistRecoveryMeta(nextMeta);
+      const metaSaved = persistRecoveryMeta(workspaceRecoveryMetaStorageKey, nextMeta);
+      try {
+        window.localStorage.setItem(
+          getWorkspaceBackupStorageKey(activeWorkspaceId, nextMeta.lastSavedAt),
+          JSON.stringify({
+            workspaceId: activeWorkspaceId,
+            diagram: cloneSnapshot(snapshot),
+            layout
+          })
+        );
+      } catch {
+        // Ignore backup history write failures and keep recovery snapshot behavior.
+      }
       if (diagramSaved && layoutSaved) {
         setHasRecoverySnapshot(true);
         if (metaSaved) {
           setRecoveryLastSavedAt(nextMeta.lastSavedAt);
         }
-        if (!metaSaved) {
-          setStorageWarning('Recovery backup saved, but backup timestamp metadata could not be written.');
+        if (!metaSaved || !backupSaved) {
+          setStorageWarning(
+            'Recovery backup saved, but some backup metadata/history entries could not be written.'
+          );
         }
         return true;
       }
@@ -571,83 +970,314 @@ const App: React.FC = () => {
       );
       return false;
     },
-    [getCurrentLayout, getCurrentSnapshot]
+    [
+      activeWorkspaceId,
+      getCurrentLayout,
+      getCurrentSnapshot,
+      workspaceRecoveryLayoutStorageKey,
+      workspaceRecoveryMetaStorageKey,
+      workspaceRecoveryStorageKey
+    ]
   );
 
   useEffect(() => {
     if (hasLoadedFromStorage.current) return;
-    const persistedDiagram = loadDiagramFromStorage(STORAGE_KEY);
+    const now = new Date().toISOString();
+    let nextWorkspaceIndex = loadWorkspaceIndex();
+    let activeWorkspaceIdFromStorage = '';
+
+    if (typeof window !== 'undefined') {
+      activeWorkspaceIdFromStorage =
+        window.localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY) || '';
+    }
+
+    if (nextWorkspaceIndex.length === 0) {
+      const workspaceId = createWorkspaceId();
+      const seedWorkspace: WorkspaceSummary = {
+        workspaceId,
+        name: DEFAULT_WORKSPACE_NAME,
+        createdAt: now,
+        updatedAt: now,
+        lastOpenedAt: now
+      };
+      nextWorkspaceIndex = [seedWorkspace];
+      persistWorkspaceIndex(nextWorkspaceIndex);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, workspaceId);
+      }
+      activeWorkspaceIdFromStorage = workspaceId;
+    }
+
+    const activeWorkspaceFromIndex =
+      nextWorkspaceIndex.find((workspace) => workspace.workspaceId === activeWorkspaceIdFromStorage) ||
+      nextWorkspaceIndex[0];
+
+    const touchedWorkspace: WorkspaceSummary = {
+      ...activeWorkspaceFromIndex,
+      lastOpenedAt: now
+    };
+    nextWorkspaceIndex = upsertWorkspaceSummary(nextWorkspaceIndex, touchedWorkspace);
+    persistWorkspaceIndexState(nextWorkspaceIndex);
+    setActiveWorkspace(touchedWorkspace);
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, touchedWorkspace.workspaceId);
+    }
+
+    const activeDiagramKey = getWorkspaceStorageKey(touchedWorkspace.workspaceId);
+    const activeLayoutKey = getWorkspaceLayoutStorageKey(touchedWorkspace.workspaceId);
+    const activeRecoveryKey = getWorkspaceRecoveryStorageKey(touchedWorkspace.workspaceId);
+    const activeRecoveryMetaKey = getWorkspaceRecoveryMetaStorageKey(touchedWorkspace.workspaceId);
+
+    const hasPrimarySnapshot = hasStorageValue(activeDiagramKey);
+    const persistedDiagram = loadDiagramFromStorage(activeDiagramKey);
     if (persistedDiagram) {
       applySnapshot(persistedDiagram);
+    } else if (hasPrimarySnapshot) {
+      const backup = loadLatestDiagramBackup(activeDiagramKey);
+      if (backup) {
+        const shouldRestoreBackup = window.confirm(
+          'We found saved workspace data that could not be loaded. Restore the most recent backup snapshot instead?'
+        );
+        if (shouldRestoreBackup) {
+          applySnapshot(backup.diagram);
+          setStorageWarning('Recovered from latest backup snapshot after load failure.');
+          pushToast('Recovered from latest backup snapshot.', 'warning');
+        } else {
+          applySnapshot(STARTER_SNAPSHOT);
+          setStorageWarning('Saved workspace data could not be loaded. Starter template loaded.');
+        }
+      } else {
+        applySnapshot(STARTER_SNAPSHOT);
+        setStorageWarning('Saved workspace data could not be loaded and no backup snapshot was found.');
+      }
     } else {
       applySnapshot(STARTER_SNAPSHOT);
     }
 
-    const persistedLayout = loadLayoutFromStorage(LAYOUT_STORAGE_KEY);
+    const persistedLayout = loadLayoutFromStorage(activeLayoutKey);
     if (persistedLayout) {
       applyLayoutSettings(persistedLayout);
     }
-    const persistedRecoveryDiagram = loadDiagramFromStorage(RECOVERY_STORAGE_KEY);
+    const persistedRecoveryDiagram = loadDiagramFromStorage(activeRecoveryKey);
     setHasRecoverySnapshot(!!persistedRecoveryDiagram);
     if (persistedRecoveryDiagram) {
-      setRecoveryLastSavedAt(loadRecoveryMeta()?.lastSavedAt || null);
+      setRecoveryLastSavedAt(loadRecoveryMeta(activeRecoveryMetaKey)?.lastSavedAt || null);
     } else {
       setRecoveryLastSavedAt(null);
     }
     hasLoadedFromStorage.current = true;
-  }, [applyLayoutSettings, applySnapshot]);
+  }, [applyLayoutSettings, applySnapshot, persistWorkspaceIndexState, pushToast]);
 
   useEffect(() => {
-    if (!hasLoadedFromStorage.current) return;
+    if (!hasLoadedFromStorage.current || !workspaceStorageKey || !activeWorkspaceId) return;
     const current = getCurrentSnapshot();
+    setSaveStatus((prev) => ({
+      state: 'saving',
+      savedAt: prev.savedAt,
+      errorText: null
+    }));
     if (saveDiagramTimeoutRef.current !== null) {
       window.clearTimeout(saveDiagramTimeoutRef.current);
     }
     saveDiagramTimeoutRef.current = window.setTimeout(() => {
-      const saved = persistDiagramToStorage(STORAGE_KEY, current);
+      const saved = persistDiagramToStorage(workspaceStorageKey, current);
       if (!saved) {
         setStorageWarning('Autosave is unavailable. Your changes may not persist after refresh.');
+        setSaveStatus({
+          state: 'error',
+          savedAt: null,
+          errorText: 'Diagram autosave failed.'
+        });
+        return;
       }
+      const backupSaved = persistDiagramBackup(workspaceStorageKey, current);
+      const savedAt = new Date().toISOString();
+      setSaveStatus({
+        state: 'saved',
+        savedAt,
+        errorText: null
+      });
+      touchWorkspaceRecord(activeWorkspaceId, { updatedAt: savedAt });
+      setStorageWarning(
+        backupSaved ? null : 'Autosave succeeded, but rolling backup history could not be updated.'
+      );
     }, 180);
     return () => {
       if (saveDiagramTimeoutRef.current !== null) {
         window.clearTimeout(saveDiagramTimeoutRef.current);
       }
     };
-  }, [nodes, edges, drawings, getCurrentSnapshot]);
+  }, [activeWorkspaceId, getCurrentSnapshot, nodes, edges, drawings, touchWorkspaceRecord, workspaceStorageKey]);
 
   useEffect(() => {
-    if (!hasLoadedFromStorage.current) return;
+    if (!hasLoadedFromStorage.current || !workspaceLayoutStorageKey || !activeWorkspaceId) return;
     const currentLayout = getCurrentLayout();
+    setSaveStatus((prev) => ({
+      state: 'saving',
+      savedAt: prev.savedAt,
+      errorText: null
+    }));
     if (saveLayoutTimeoutRef.current !== null) {
       window.clearTimeout(saveLayoutTimeoutRef.current);
     }
     saveLayoutTimeoutRef.current = window.setTimeout(() => {
-      const saved = persistLayoutToStorage(LAYOUT_STORAGE_KEY, currentLayout);
+      const saved = persistLayoutToStorage(workspaceLayoutStorageKey, currentLayout);
       if (!saved) {
         setStorageWarning('Layout autosave is unavailable. Your view preferences may not persist.');
+        setSaveStatus({
+          state: 'error',
+          savedAt: null,
+          errorText: 'Layout autosave failed.'
+        });
+        return;
       }
+      const savedAt = new Date().toISOString();
+      setSaveStatus({
+        state: 'saved',
+        savedAt,
+        errorText: null
+      });
+      touchWorkspaceRecord(activeWorkspaceId, { updatedAt: savedAt });
+      setStorageWarning(null);
     }, 180);
     return () => {
       if (saveLayoutTimeoutRef.current !== null) {
         window.clearTimeout(saveLayoutTimeoutRef.current);
       }
     };
-  }, [getCurrentLayout]);
+  }, [activeWorkspaceId, getCurrentLayout, touchWorkspaceRecord, workspaceLayoutStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!hasLoadedFromStorage.current || !workspaceStorageKey || !workspaceLayoutStorageKey) return;
+
+    const handleBeforeUnload = () => {
+      const snapshot = getCurrentSnapshot();
+      persistDiagramToStorage(workspaceStorageKey, snapshot);
+      persistDiagramBackup(workspaceStorageKey, snapshot);
+      persistLayoutToStorage(workspaceLayoutStorageKey, getCurrentLayout());
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [getCurrentLayout, getCurrentSnapshot, workspaceLayoutStorageKey, workspaceStorageKey]);
+
+  const flushActiveWorkspaceSave = useCallback(() => {
+    if (!hasLoadedFromStorage.current || !workspaceStorageKey || !workspaceLayoutStorageKey || !activeWorkspaceId) {
+      return false;
+    }
+
+    if (saveDiagramTimeoutRef.current !== null) {
+      window.clearTimeout(saveDiagramTimeoutRef.current);
+      saveDiagramTimeoutRef.current = null;
+    }
+    if (saveLayoutTimeoutRef.current !== null) {
+      window.clearTimeout(saveLayoutTimeoutRef.current);
+      saveLayoutTimeoutRef.current = null;
+    }
+
+    const snapshot = getCurrentSnapshot();
+    const layout = getCurrentLayout();
+    const diagramSaved = persistDiagramToStorage(workspaceStorageKey, snapshot);
+    const layoutSaved = persistLayoutToStorage(workspaceLayoutStorageKey, layout);
+    const backupSaved = diagramSaved ? persistDiagramBackup(workspaceStorageKey, snapshot) : false;
+
+    if (diagramSaved && layoutSaved) {
+      const savedAt = new Date().toISOString();
+      setSaveStatus({
+        state: 'saved',
+        savedAt,
+        errorText: null
+      });
+      touchWorkspaceRecord(activeWorkspaceId, { updatedAt: savedAt });
+      if (!backupSaved) {
+        setStorageWarning('Save succeeded, but rolling backup history could not be updated.');
+      }
+      return true;
+    }
+
+    setSaveStatus({
+      state: 'error',
+      savedAt: null,
+      errorText: 'Save failed while switching workspaces.'
+    });
+    setStorageWarning('Save failed before workspace switch. Latest edits may not persist.');
+    return false;
+  }, [
+    activeWorkspaceId,
+    getCurrentLayout,
+    getCurrentSnapshot,
+    touchWorkspaceRecord,
+    workspaceLayoutStorageKey,
+    workspaceStorageKey
+  ]);
+
+  useEffect(() => {
+    if (!hasLoadedFromStorage.current) return;
+    try {
+      window.localStorage.setItem(SNAP_TO_GRID_STORAGE_KEY, snapToGrid ? 'true' : 'false');
+    } catch {
+      // ignore storage errors for view-only preferences
+    }
+  }, [snapToGrid]);
+
+  useEffect(() => {
+    if (!hasLoadedFromStorage.current) return;
+    try {
+      window.localStorage.setItem(MINIMAP_STORAGE_KEY, showMinimap ? 'true' : 'false');
+    } catch {
+      // ignore storage errors for view-only preferences
+    }
+  }, [showMinimap]);
+
+  useEffect(() => {
+    if (!hasLoadedFromStorage.current) return;
+    persistStoredThemePreference(isDarkMode);
+  }, [isDarkMode]);
 
   const handleUpdateNode = useCallback((updatedNode: Node) => {
     if (shouldRecordEditHistory(lastNodeEditRef, updatedNode.id)) {
       pushHistory();
     }
-    setNodes((prev) => prev.map((n) => (n.id === updatedNode.id ? updatedNode : n)));
-  }, [pushHistory]);
+    const normalized = withNodeDataDefaults(updatedNode);
+    setNodes((prev) => {
+      const nextNodes = prev.map((n) => (n.id === normalized.id ? normalized : n));
+      if (workspaceStorageKey) {
+        const nextSnapshot = cloneSnapshot({
+          schemaVersion: GRAPH_SCHEMA_VERSION,
+          nodes: nextNodes,
+          edges,
+          drawings
+        });
+        persistDiagramToStorage(workspaceStorageKey, nextSnapshot);
+        persistDiagramBackup(workspaceStorageKey, nextSnapshot);
+      }
+      return nextNodes;
+    });
+  }, [drawings, edges, pushHistory, workspaceStorageKey]);
 
   const handleUpdateEdge = useCallback((updatedEdge: Edge) => {
     if (shouldRecordEditHistory(lastEdgeEditRef, updatedEdge.id)) {
       pushHistory();
     }
-    setEdges((prev) => prev.map((e) => (e.id === updatedEdge.id ? updatedEdge : e)));
-  }, [pushHistory]);
+    setEdges((prev) => {
+      const nextEdges = prev.map((e) => (e.id === updatedEdge.id ? updatedEdge : e));
+      if (workspaceStorageKey) {
+        const nextSnapshot = cloneSnapshot({
+          schemaVersion: GRAPH_SCHEMA_VERSION,
+          nodes,
+          edges: nextEdges,
+          drawings
+        });
+        persistDiagramToStorage(workspaceStorageKey, nextSnapshot);
+        persistDiagramBackup(workspaceStorageKey, nextSnapshot);
+      }
+      return nextEdges;
+    });
+  }, [drawings, nodes, pushHistory, workspaceStorageKey]);
 
   const flushPendingNodePositions = useCallback(() => {
     nodePositionRafRef.current = null;
@@ -656,15 +1286,19 @@ const App: React.FC = () => {
     const updates = Object.entries(pending);
     if (updates.length === 0) return;
 
-    const updatesById = new Map<string, Position>(updates);
+    const updatesById = new Map<string, Position>();
+    for (const [id, nextPosition] of updates) {
+      updatesById.set(id, nextPosition as Position);
+    }
     setNodes((prev) =>
       prev.map((node) => {
         const nextPosition = updatesById.get(node.id);
         if (!nextPosition) return node;
+        if (node.data?.isLocked) return node;
         return {
           ...node,
           position: nextPosition,
-          swimlaneId: Math.floor(Math.max(0, nextPosition.y) / 300) + 1
+          swimlaneId: Math.floor(Math.max(0, nextPosition.y) / SWIMLANE_HEIGHT) + 1
         };
       })
     );
@@ -680,7 +1314,6 @@ const App: React.FC = () => {
   );
 
   const handleSelectEdge = useCallback((id: string | null) => {
-    setInspectorTabRequest(null);
     setSelectedEdgeId(id);
     if (!id) {
       return;
@@ -694,6 +1327,7 @@ const App: React.FC = () => {
     const edge = edges.find((e) => e.id === id);
     if (edge) {
       setActiveEdgeStyle(edge.style);
+      setActiveEdgePathType(edge.pathType || 'bezier');
       setActiveArrowConfig({
         showArrowHead: edge.showArrowHead,
         showMidArrow: !!edge.showMidArrow
@@ -702,16 +1336,13 @@ const App: React.FC = () => {
   }, [edges, isMobileViewport]);
 
   const handleSelectNodes = useCallback((ids: string[]) => {
-    setInspectorTabRequest(null);
     setSelectedNodeIds(ids);
     setSelectedEdgeId(null);
-    if (ids.length === 1) {
+    if (ids.length > 0) {
       setIsInspectorOpen(true);
       if (isMobileViewport) {
         setIsSidebarOpen(false);
       }
-    } else {
-      setIsInspectorOpen(false);
     }
   }, [isMobileViewport]);
 
@@ -750,20 +1381,48 @@ const App: React.FC = () => {
           };
       }
 
-      const newNode: Node = {
+      const newNode: Node = withNodeDataDefaults({
         id: createId('node'),
         type,
         label: type,
         shape: type === EntityType.GATE ? NodeShape.DIAMOND : NodeShape.RECTANGLE,
         position: finalPos,
         zIndex: 100,
-        swimlaneId: Math.floor(Math.max(0, finalPos.y) / 300) + 1
-      };
+        swimlaneId: Math.floor(Math.max(0, finalPos.y) / SWIMLANE_HEIGHT) + 1
+      });
       return [...prev, newNode];
     });
   }, [pushHistory, getCanvasCenterWorld]);
 
   const handleConnect = useCallback((sourceId: string, targetId: string, spIdx: number, tpIdx: number) => {
+    if (sourceId === targetId) {
+      pushToast('Connection blocked: source and target cannot be the same node.', 'warning');
+      return;
+    }
+
+    const hasExactDuplicate = edges.some((edge) => {
+      const sameEndpoints =
+        edge.sourceId === sourceId &&
+        edge.targetId === targetId &&
+        edge.sourcePortIdx === spIdx &&
+        edge.targetPortIdx === tpIdx;
+      if (!sameEndpoints) return false;
+      return (
+        (edge.label || '') === 'Transfer' &&
+        edge.rail === PaymentRail.BLANK &&
+        (edge.direction || FlowDirection.PUSH) === FlowDirection.PUSH &&
+        (!edge.timing || edge.timing === '')
+      );
+    });
+
+    if (hasExactDuplicate) {
+      pushToast(
+        'Connection blocked: identical edge already exists. Change label or rail to add a parallel edge.',
+        'warning'
+      );
+      return;
+    }
+
     const newEdgeId = createId('edge');
     const newEdge: Edge = {
       id: newEdgeId,
@@ -779,12 +1438,12 @@ const App: React.FC = () => {
       style: activeEdgeStyle, 
       showArrowHead: activeArrowConfig.showArrowHead,
       showMidArrow: activeArrowConfig.showMidArrow,
-      pathType: 'bezier'
+      pathType: activeEdgePathType
     };
     pushHistory();
     setEdges((prev) => [...prev, newEdge]);
     handleSelectEdge(newEdgeId);
-  }, [activeEdgeStyle, activeArrowConfig, pushHistory, handleSelectEdge]);
+  }, [activeEdgePathType, activeEdgeStyle, activeArrowConfig, pushHistory, handleSelectEdge, edges, pushToast]);
 
   const connectNodesWithAutoPorts = useCallback(
     (sourceNode: Node, targetNode: Node) => {
@@ -953,7 +1612,7 @@ const App: React.FC = () => {
         y: center.y - CONNECTOR_HANDLE_HALF
       },
       zIndex: 5,
-      swimlaneId: Math.floor(Math.max(0, center.y) / 300) + 1,
+      swimlaneId: Math.floor(Math.max(0, center.y) / SWIMLANE_HEIGHT) + 1,
       isConnectorHandle: true
     };
 
@@ -967,7 +1626,7 @@ const App: React.FC = () => {
         y: center.y - CONNECTOR_HANDLE_HALF
       },
       zIndex: 5,
-      swimlaneId: Math.floor(Math.max(0, center.y) / 300) + 1,
+      swimlaneId: Math.floor(Math.max(0, center.y) / SWIMLANE_HEIGHT) + 1,
       isConnectorHandle: true
     };
 
@@ -985,7 +1644,7 @@ const App: React.FC = () => {
       style: activeEdgeStyle,
       showArrowHead: activeArrowConfig.showArrowHead,
       showMidArrow: activeArrowConfig.showMidArrow,
-      pathType: 'bezier'
+      pathType: activeEdgePathType
     };
 
     pushHistory();
@@ -994,12 +1653,13 @@ const App: React.FC = () => {
     setSelectedNodeIds([]);
     setSelectedEdgeId(edgeId);
     setActiveEdgeStyle(newEdge.style);
+    setActiveEdgePathType(newEdge.pathType);
     setActiveArrowConfig({
       showArrowHead: newEdge.showArrowHead,
       showMidArrow: !!newEdge.showMidArrow
     });
     setIsInspectorOpen(true);
-  }, [activeArrowConfig, activeEdgeStyle, getDefaultConnectorCenter, pushHistory]);
+  }, [activeArrowConfig, activeEdgePathType, activeEdgeStyle, getDefaultConnectorCenter, pushHistory]);
 
   const handleConnectorNativeDragStart = useCallback(
     (event: React.DragEvent<HTMLButtonElement>) => {
@@ -1049,6 +1709,7 @@ const App: React.FC = () => {
     setNodes((prev) =>
       prev.map((node) => {
         if (!selectedSet.has(node.id)) return node;
+        if (node.data?.isLocked) return node;
         const nextPosition = {
           x: node.position.x + dx,
           y: node.position.y + dy
@@ -1056,7 +1717,7 @@ const App: React.FC = () => {
         return {
           ...node,
           position: nextPosition,
-          swimlaneId: Math.floor(Math.max(0, nextPosition.y) / 300) + 1
+          swimlaneId: Math.floor(Math.max(0, nextPosition.y) / SWIMLANE_HEIGHT) + 1
         };
       })
     );
@@ -1081,7 +1742,7 @@ const App: React.FC = () => {
         ...node,
         id: newId,
         position: nextPosition,
-        swimlaneId: Math.floor(Math.max(0, nextPosition.y) / 300) + 1
+        swimlaneId: Math.floor(Math.max(0, nextPosition.y) / SWIMLANE_HEIGHT) + 1
       } satisfies Node;
     });
 
@@ -1103,6 +1764,46 @@ const App: React.FC = () => {
     setSelectedEdgeId(null);
   }, [selectedNodeIds, nodes, edges, pushHistory]);
 
+  const handleRenameSelection = useCallback(() => {
+    if (!selectedNodeId) return;
+    setIsInspectorOpen(true);
+    if (isMobileViewport) {
+      setIsSidebarOpen(false);
+    }
+    pushToast('Rename from Inspector -> Node Name.', 'info');
+  }, [isMobileViewport, pushToast, selectedNodeId]);
+
+  const handleToggleQuickAttribute = useCallback(() => {
+    togglePinnedNodeAttribute('account');
+  }, [togglePinnedNodeAttribute]);
+
+  const handleApplyNodeTemplateToSimilar = useCallback(
+    (template: Node) => {
+      pushHistory();
+      let updatedCount = 0;
+      setNodes((prev) =>
+        prev.map((node) => {
+          if (node.id === template.id || node.type !== template.type) return node;
+          updatedCount += 1;
+          return {
+            ...node,
+            shape: template.shape,
+            description: template.description,
+            color: template.color,
+            endPointType: template.endPointType,
+            data: template.data ? { ...template.data } : node.data
+          };
+        })
+      );
+      if (updatedCount > 0) {
+        pushToast(`Applied fields to ${updatedCount} similar node${updatedCount === 1 ? '' : 's'}.`, 'success');
+      } else {
+        pushToast('No similar nodes found for apply action.', 'info');
+      }
+    },
+    [pushHistory, pushToast]
+  );
+
   const handleAlignSelectedNodes = useCallback((mode: 'left' | 'center' | 'right') => {
     if (selectedNodeIds.length < 2) return;
 
@@ -1123,6 +1824,7 @@ const App: React.FC = () => {
     setNodes((prev) =>
       prev.map((node) => {
         if (!selectedSet.has(node.id)) return node;
+        if (node.data?.isLocked) return node;
         const { width } = getNodeDimensions(node);
         let x = node.position.x;
         if (mode === 'left') x = left;
@@ -1156,6 +1858,7 @@ const App: React.FC = () => {
       prev.map((node) => {
         const nextX = nextXById.get(node.id);
         if (nextX === undefined) return node;
+        if (node.data?.isLocked) return node;
         return { ...node, position: { ...node.position, x: nextX } };
       })
     );
@@ -1202,18 +1905,6 @@ const App: React.FC = () => {
     setOverlayMode('risk');
   }, [overlayMode, setOverlayMode]);
 
-  const handleAddSwimlane = useCallback(() => {
-    addSwimlane();
-  }, [addSwimlane]);
-
-  const handleRemoveSwimlane = useCallback((indexToRemove: number) => {
-    removeSwimlane(indexToRemove);
-  }, [removeSwimlane]);
-
-  const handleUpdateSwimlaneLabel = useCallback((indexToUpdate: number, label: string) => {
-    updateSwimlaneLabel(indexToUpdate, label);
-  }, [updateSwimlaneLabel]);
-
   useEffect(() => {
     if (laneGroupingMode === 'manual') return;
     const labels = getLaneLabelsForMode(laneGroupingMode);
@@ -1229,6 +1920,99 @@ const App: React.FC = () => {
       })
     );
   }, [laneGroupingMode, setShowSwimlanes, setSwimlaneLabels]);
+
+  const activateWorkspace = useCallback(
+    (
+      workspace: WorkspaceSummary,
+      options?: { snapshot?: DiagramSnapshot; layout?: Partial<LayoutSettings> }
+    ) => {
+      const now = new Date().toISOString();
+      const touchedWorkspace: WorkspaceSummary = {
+        ...workspace,
+        lastOpenedAt: now
+      };
+      persistWorkspaceIndexState(upsertWorkspaceSummary(workspaceIndex, touchedWorkspace));
+      setActiveWorkspace(touchedWorkspace);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, touchedWorkspace.workspaceId);
+      }
+
+      const snapshot =
+        options?.snapshot ||
+        loadDiagramFromStorage(getWorkspaceStorageKey(touchedWorkspace.workspaceId)) ||
+        STARTER_SNAPSHOT;
+      const nextLayout =
+        options?.layout ||
+        loadLayoutFromStorage(getWorkspaceLayoutStorageKey(touchedWorkspace.workspaceId)) ||
+        null;
+      const recoveryDiagram = loadDiagramFromStorage(
+        getWorkspaceRecoveryStorageKey(touchedWorkspace.workspaceId)
+      );
+      const recoveryMeta = loadRecoveryMeta(getWorkspaceRecoveryMetaStorageKey(touchedWorkspace.workspaceId));
+
+      applySnapshot(snapshot);
+      if (nextLayout) {
+        applyLayoutSettings(nextLayout);
+      }
+      setSelectedNodeIds([]);
+      setSelectedEdgeId(null);
+      setIsInspectorOpen(false);
+      setPast([]);
+      setFuture([]);
+      hasInitialAutoFitRef.current = false;
+
+      setHasRecoverySnapshot(!!recoveryDiagram);
+      setRecoveryLastSavedAt(recoveryMeta?.lastSavedAt || null);
+      setSaveStatus({
+        state: 'saved',
+        savedAt: touchedWorkspace.updatedAt,
+        errorText: null
+      });
+    },
+    [applyLayoutSettings, applySnapshot, persistWorkspaceIndexState, workspaceIndex]
+  );
+
+  const handleOpenWorkspace = useCallback(
+    (workspaceId: string) => {
+      const workspace = workspaceIndex.find((entry) => entry.workspaceId === workspaceId);
+      if (!workspace) return;
+      flushActiveWorkspaceSave();
+      activateWorkspace(workspace);
+      pushToast(`Opened ${workspace.name} · ${getWorkspaceShortId(workspace.workspaceId)}.`, 'success');
+    },
+    [activateWorkspace, flushActiveWorkspaceSave, pushToast, workspaceIndex]
+  );
+
+  const handleCreateWorkspace = useCallback(
+    (requestedName?: string) => {
+      flushActiveWorkspaceSave();
+      const now = new Date().toISOString();
+      const name = (requestedName || '').trim() || activeWorkspace?.name || DEFAULT_WORKSPACE_NAME;
+      const workspace: WorkspaceSummary = {
+        workspaceId: createWorkspaceId(),
+        name,
+        createdAt: now,
+        updatedAt: now,
+        lastOpenedAt: now
+      };
+      const layout = getCurrentLayout();
+      activateWorkspace(workspace, {
+        snapshot: STARTER_SNAPSHOT,
+        layout
+      });
+      persistDiagramToStorage(getWorkspaceStorageKey(workspace.workspaceId), STARTER_SNAPSHOT);
+      persistLayoutToStorage(getWorkspaceLayoutStorageKey(workspace.workspaceId), layout);
+      pushToast(`Created workspace ${workspace.name} · ${getWorkspaceShortId(workspace.workspaceId)}.`, 'success');
+    },
+    [activateWorkspace, activeWorkspace?.name, flushActiveWorkspaceSave, getCurrentLayout, pushToast]
+  );
+
+  const handleCreateWorkspaceFromPrompt = useCallback(() => {
+    const defaultName = activeWorkspace?.name || DEFAULT_WORKSPACE_NAME;
+    const input = window.prompt('Enter workspace name', defaultName);
+    if (input === null) return;
+    handleCreateWorkspace(input);
+  }, [activeWorkspace?.name, handleCreateWorkspace]);
 
   const handleResetCanvas = useCallback(() => {
     const shouldReset = window.confirm(
@@ -1247,7 +2031,10 @@ const App: React.FC = () => {
   }, [applySnapshot, pushHistory, pushToast, saveRecoverySnapshot]);
 
   const handleRestoreRecovery = useCallback(() => {
-    const recoveryDiagram = loadDiagramFromStorage(RECOVERY_STORAGE_KEY);
+    if (!workspaceRecoveryStorageKey || !workspaceRecoveryLayoutStorageKey || !workspaceRecoveryMetaStorageKey) {
+      return;
+    }
+    const recoveryDiagram = loadDiagramFromStorage(workspaceRecoveryStorageKey);
     if (!recoveryDiagram) {
       pushToast(
         'No recovery snapshot yet. Make a change, then use Reset or Import to create a backup you can restore.',
@@ -1260,7 +2047,7 @@ const App: React.FC = () => {
 
     pushHistory();
     applySnapshot(recoveryDiagram);
-    const recoveryLayout = loadLayoutFromStorage(RECOVERY_LAYOUT_STORAGE_KEY);
+    const recoveryLayout = loadLayoutFromStorage(workspaceRecoveryLayoutStorageKey);
     if (recoveryLayout) {
       applyLayoutSettings(recoveryLayout);
     }
@@ -1268,9 +2055,17 @@ const App: React.FC = () => {
     setSelectedEdgeId(null);
     setIsInspectorOpen(false);
     setHasRecoverySnapshot(true);
-    setRecoveryLastSavedAt(loadRecoveryMeta()?.lastSavedAt || null);
+    setRecoveryLastSavedAt(loadRecoveryMeta(workspaceRecoveryMetaStorageKey)?.lastSavedAt || null);
     pushToast('Recovery snapshot restored.', 'success');
-  }, [applyLayoutSettings, applySnapshot, pushHistory, pushToast]);
+  }, [
+    applyLayoutSettings,
+    applySnapshot,
+    pushHistory,
+    pushToast,
+    workspaceRecoveryLayoutStorageKey,
+    workspaceRecoveryMetaStorageKey,
+    workspaceRecoveryStorageKey
+  ]);
 
   const handleImportDiagram = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1284,38 +2079,115 @@ const App: React.FC = () => {
           throw new Error('Unsupported file format.');
         }
 
+        flushActiveWorkspaceSave();
         saveRecoverySnapshot();
-        pushHistory();
-        applySnapshot(parsed.diagram);
-        setSelectedNodeIds([]);
-        setSelectedEdgeId(null);
-        setIsInspectorOpen(false);
+        const importedWorkspaceId = parsed.workspace.workspaceId;
+        const importedName = (parsed.workspace.name || '').trim() || activeWorkspace?.name || DEFAULT_WORKSPACE_NAME;
+        const importedCreatedAt = parsed.workspace.createdAt;
+        const importedUpdatedAt = parsed.workspace.updatedAt;
+        const matchingWorkspace = importedWorkspaceId
+          ? workspaceIndex.find((workspace) => workspace.workspaceId === importedWorkspaceId)
+          : null;
 
-        if (parsed.layout) {
-          applyLayoutSettings(parsed.layout);
+        let targetWorkspaceId = importedWorkspaceId || createWorkspaceId();
+        let isReplace = false;
+        if (matchingWorkspace) {
+          const decision = window.prompt(
+            `Workspace ${getWorkspaceShortId(matchingWorkspace.workspaceId)} already exists.\n` +
+              `Enter 1 to Replace existing workspace\n` +
+              `Enter 2 to Create a copy (default)`,
+            '2'
+          );
+          isReplace = decision?.trim() === '1';
+          if (!isReplace) {
+            targetWorkspaceId = createWorkspaceId();
+          }
         }
-        pushToast('Diagram imported successfully. Backup saved.', 'success');
+
+        const now = new Date().toISOString();
+        const nextWorkspace: WorkspaceSummary = {
+          workspaceId: targetWorkspaceId,
+          name: importedName,
+          createdAt: isReplace
+            ? matchingWorkspace?.createdAt || importedCreatedAt || now
+            : importedCreatedAt || now,
+          updatedAt: importedUpdatedAt || now,
+          lastOpenedAt: now
+        };
+
+        const nextLayout: Partial<LayoutSettings> = {
+          ...getCurrentLayout(),
+          ...parsed.layout
+        };
+        persistDiagramToStorage(getWorkspaceStorageKey(targetWorkspaceId), parsed.diagram);
+        persistLayoutToStorage(
+          getWorkspaceLayoutStorageKey(targetWorkspaceId),
+          nextLayout as LayoutSettings
+        );
+        activateWorkspace(nextWorkspace, {
+          snapshot: parsed.diagram,
+          layout: nextLayout
+        });
+        pushHistory();
+        pushToast(
+          isReplace
+            ? `Imported and replaced workspace ${nextWorkspace.name} · ${getWorkspaceShortId(nextWorkspace.workspaceId)}.`
+            : `Imported as copy ${nextWorkspace.name} · ${getWorkspaceShortId(nextWorkspace.workspaceId)}.`,
+          'success'
+        );
       } catch (error) {
-        console.error('Import failed:', error);
+        logDevError('Import failed:', error);
         pushToast('Import failed. Use a valid FinFlow JSON export file.', 'error');
       } finally {
         event.target.value = '';
       }
     },
-    [applyLayoutSettings, applySnapshot, pushHistory, pushToast, saveRecoverySnapshot]
+    [
+      activateWorkspace,
+      activeWorkspace?.name,
+      getCurrentLayout,
+      pushHistory,
+      pushToast,
+      saveRecoverySnapshot,
+      workspaceIndex,
+      flushActiveWorkspaceSave
+    ]
   );
 
   const handleExportDiagram = useCallback(() => {
-    const payload: ExportPayloadV2 = createExportPayload(getCurrentSnapshot(), getCurrentLayout());
+    if (!activeWorkspace) {
+      pushToast('Export unavailable until workspace initialization finishes.', 'warning');
+      return;
+    }
+    const payload: ExportPayloadV2 = createExportPayload(getCurrentSnapshot(), getCurrentLayout(), {
+      workspaceId: activeWorkspace.workspaceId,
+      shortWorkspaceId: activeWorkspaceShortId,
+      name: activeWorkspace.name,
+      schemaVersion: WORKSPACE_EXPORT_SCHEMA_VERSION,
+      createdAt: activeWorkspace.createdAt,
+      updatedAt: activeWorkspace.updatedAt
+    });
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `finflow-diagram-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `finflow-diagram-${activeWorkspaceShortId}-${Date.now()}.json`;
+    anchor.style.position = 'fixed';
+    anchor.style.left = '-9999px';
+    document.body.appendChild(anchor);
+    anchor.click();
+    window.setTimeout(() => {
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    }, 0);
     pushToast('Diagram exported successfully.', 'success');
-  }, [getCurrentLayout, getCurrentSnapshot, pushToast]);
+  }, [
+    activeWorkspace,
+    activeWorkspaceShortId,
+    getCurrentLayout,
+    getCurrentSnapshot,
+    pushToast
+  ]);
 
   const handleExportPng = useCallback(async () => {
     if (!exportLayerRef.current) {
@@ -1331,7 +2203,7 @@ const App: React.FC = () => {
       });
       pushToast('PNG exported successfully.', 'success');
     } catch (error) {
-      console.error('PNG export failed:', error);
+      logDevError('PNG export failed:', error);
       pushToast('PNG export failed. Try again.', 'error');
     }
   }, [isDarkMode, nodes, pushToast]);
@@ -1350,7 +2222,7 @@ const App: React.FC = () => {
       });
       pushToast('SVG exported successfully.', 'success');
     } catch (error) {
-      console.error('SVG export failed:', error);
+      logDevError('SVG export failed:', error);
       pushToast('SVG export failed. Try again.', 'error');
     }
   }, [isDarkMode, nodes, pushToast]);
@@ -1369,10 +2241,51 @@ const App: React.FC = () => {
       });
       pushToast('PDF exported successfully.', 'success');
     } catch (error) {
-      console.error('PDF export failed:', error);
+      logDevError('PDF export failed:', error);
       pushToast('PDF export failed. Try again.', 'error');
     }
   }, [isDarkMode, nodes, pushToast]);
+
+  const handleRetrySave = useCallback(() => {
+    if (!workspaceStorageKey || !workspaceLayoutStorageKey || !activeWorkspaceId) {
+      pushToast('Save retry unavailable: workspace storage keys are missing.', 'error');
+      return;
+    }
+    const snapshot = getCurrentSnapshot();
+    const diagramSaved = persistDiagramToStorage(workspaceStorageKey, snapshot);
+    const layoutSaved = persistLayoutToStorage(workspaceLayoutStorageKey, getCurrentLayout());
+    const backupSaved = diagramSaved ? persistDiagramBackup(workspaceStorageKey, snapshot) : false;
+
+    if (diagramSaved && layoutSaved) {
+      const savedAt = new Date().toISOString();
+      setSaveStatus({
+        state: 'saved',
+        savedAt,
+        errorText: null
+      });
+      touchWorkspaceRecord(activeWorkspaceId, { updatedAt: savedAt });
+      setStorageWarning(
+        backupSaved ? null : 'Save succeeded, but rolling backup history could not be updated.'
+      );
+      pushToast('Save retry succeeded.', 'success');
+      return;
+    }
+
+    setSaveStatus({
+      state: 'error',
+      savedAt: null,
+      errorText: 'Save retry failed.'
+    });
+    pushToast('Save retry failed. Browser storage may be unavailable.', 'error');
+  }, [
+    activeWorkspaceId,
+    getCurrentLayout,
+    getCurrentSnapshot,
+    pushToast,
+    touchWorkspaceRecord,
+    workspaceLayoutStorageKey,
+    workspaceStorageKey
+  ]);
 
   const hasSelectedEdge = !!selectedEdgeId && edges.some((edge) => edge.id === selectedEdgeId);
 
@@ -1383,6 +2296,17 @@ const App: React.FC = () => {
       const edge = edges.find((candidate) => candidate.id === selectedEdgeId);
       if (!edge) return;
       handleUpdateEdge({ ...edge, style });
+    },
+    [edges, handleUpdateEdge, selectedEdgeId]
+  );
+
+  const handleSetSelectedEdgePathType = useCallback(
+    (pathType: 'bezier' | 'orthogonal') => {
+      setActiveEdgePathType(pathType);
+      if (!selectedEdgeId) return;
+      const edge = edges.find((candidate) => candidate.id === selectedEdgeId);
+      if (!edge) return;
+      handleUpdateEdge({ ...edge, pathType });
     },
     [edges, handleUpdateEdge, selectedEdgeId]
   );
@@ -1405,6 +2329,74 @@ const App: React.FC = () => {
     handleUpdateEdge({ ...edge, ...nextConfig });
   }, [activeArrowConfig, edges, handleUpdateEdge, selectedEdgeId]);
 
+  const getDiagramBounds = useCallback((targetNodes: Node[]) => {
+    const contentNodes = targetNodes.filter((node) => !node.isConnectorHandle);
+    if (contentNodes.length === 0) return null;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const node of contentNodes) {
+      const { width, height } = getNodeDimensions(node);
+      minX = Math.min(minX, node.position.x);
+      minY = Math.min(minY, node.position.y);
+      maxX = Math.max(maxX, node.position.x + width);
+      maxY = Math.max(maxY, node.position.y + height);
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return null;
+    }
+
+    return {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
+      centerX: (minX + maxX) / 2,
+      centerY: (minY + maxY) / 2
+    };
+  }, []);
+
+  const handleFitView = useCallback(() => {
+    if (!containerRef.current) return;
+    const bounds = getDiagramBounds(nodes);
+    if (!bounds) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const viewportWidth = Math.max(1, rect.width);
+    const viewportHeight = Math.max(1, rect.height);
+    const padding = isMobileViewport ? 44 : 84;
+    const zoomX = (viewportWidth - padding * 2) / bounds.width;
+    const zoomY = (viewportHeight - padding * 2) / bounds.height;
+    const nextZoom = clampValue(Math.min(zoomX, zoomY), 0.3, 2.5);
+
+    setViewport({
+      x: viewportWidth / 2 - bounds.centerX * nextZoom,
+      y: viewportHeight / 2 - bounds.centerY * nextZoom,
+      zoom: nextZoom
+    });
+  }, [getDiagramBounds, isMobileViewport, nodes]);
+
+  const handleCenterDiagram = useCallback(() => {
+    if (!containerRef.current) return;
+    const bounds = getDiagramBounds(nodes);
+    if (!bounds) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const viewportWidth = Math.max(1, rect.width);
+    const viewportHeight = Math.max(1, rect.height);
+    setViewport((prev) => ({
+      ...prev,
+      x: viewportWidth / 2 - bounds.centerX * prev.zoom,
+      y: viewportHeight / 2 - bounds.centerY * prev.zoom
+    }));
+  }, [getDiagramBounds, nodes]);
+
   const handleZoomIn = useCallback(() => {
     setViewport((prev) => ({ ...prev, zoom: Math.min(2.5, prev.zoom * 1.12) }));
   }, []);
@@ -1413,13 +2405,28 @@ const App: React.FC = () => {
     setViewport((prev) => ({ ...prev, zoom: Math.max(0.3, prev.zoom * 0.9) }));
   }, []);
 
-  const handleOpenCanvasControls = useCallback(() => {
-    setInspectorTabRequest('canvas');
-    setIsInspectorOpen(true);
-    if (isMobileViewport) {
-      setIsSidebarOpen(false);
+  useEffect(() => {
+    if (!hasLoadedFromStorage.current || hasInitialAutoFitRef.current) return;
+    const contentNodes = nodes.filter((node) => !node.isConnectorHandle);
+    if (contentNodes.length === 0) return;
+    hasInitialAutoFitRef.current = true;
+    const rafId = window.requestAnimationFrame(() => {
+      handleFitView();
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [handleFitView, nodes]);
+
+  const handleCycleGridMode = useCallback(() => {
+    if (gridMode === 'none') {
+      setGridMode('dots');
+      return;
     }
-  }, [isMobileViewport]);
+    if (gridMode === 'dots') {
+      setGridMode('lines');
+      return;
+    }
+    setGridMode('none');
+  }, [gridMode, setGridMode]);
 
   const floatingContextAnchor = useCallback((): { x: number; y: number } | null => {
     const clampAnchor = (x: number, y: number) => {
@@ -1532,7 +2539,6 @@ const App: React.FC = () => {
     }
   }, [screenToWorld, handleAddConnector, handleAddNode]);
 
-  // Fix: Improved handleGenerateFlow using recommended responseSchema and proper text property access
   const handleGenerateFlow = async () => {
     if (!isAIEnabled) return;
     if (!aiPrompt.trim()) return;
@@ -1611,15 +2617,15 @@ const App: React.FC = () => {
       setNodes(
         generatedNodes.map((node) => {
           const safeType = isValidEntityType(node.type) ? node.type : EntityType.PROCESSOR;
-          return {
+          return withNodeDataDefaults({
             id: node.id,
             type: safeType,
             label: node.label,
             position: node.position,
             zIndex: 100,
-            swimlaneId: Math.floor(Math.max(0, node.position.y) / 300) + 1,
+            swimlaneId: Math.floor(Math.max(0, node.position.y) / SWIMLANE_HEIGHT) + 1,
             shape: safeType === EntityType.GATE ? NodeShape.DIAMOND : NodeShape.RECTANGLE
-          } satisfies Node;
+          } satisfies Node);
         })
       );
       setEdges(
@@ -1640,7 +2646,7 @@ const App: React.FC = () => {
         } satisfies Edge))
       );
     } catch (error) { 
-      console.error('AI Flow Generation Error:', error);
+      logDevError('AI Flow Generation Error:', error);
       pushToast('AI generation failed. Check configuration and try again.', 'error');
     } finally { 
       setIsAILoading(false); 
@@ -1671,10 +2677,78 @@ const App: React.FC = () => {
 
       const key = event.key.toLowerCase();
       const isMetaOrCtrl = event.metaKey || event.ctrlKey;
+      const isPlainKey = !isMetaOrCtrl && !event.altKey;
+
+      if (isMetaOrCtrl && key === 'k') {
+        event.preventDefault();
+        setIsCommandPaletteOpen(true);
+        return;
+      }
+
+      if (event.key === 'Escape' && isCommandPaletteOpen) {
+        event.preventDefault();
+        setIsCommandPaletteOpen(false);
+        return;
+      }
 
       if (event.key === '?' || (event.key === '/' && event.shiftKey)) {
         event.preventDefault();
         openHelp();
+        return;
+      }
+
+      if (isPlainKey && key === 'v') {
+        event.preventDefault();
+        setActiveTool('select');
+        return;
+      }
+
+      if (isPlainKey && key === 'c') {
+        event.preventDefault();
+        setActiveTool('draw');
+        return;
+      }
+
+      if (isPlainKey && key === 't') {
+        event.preventDefault();
+        setActiveTool('text');
+        return;
+      }
+
+      if (isPlainKey && key === 'g') {
+        event.preventDefault();
+        handleCycleGridMode();
+        return;
+      }
+
+      if (isPlainKey && key === 's') {
+        event.preventDefault();
+        setSnapToGrid((prev) => !prev);
+        return;
+      }
+
+      if (isPlainKey && key === 'l') {
+        event.preventDefault();
+        handleToggleSwimlanes();
+        return;
+      }
+
+      if (isPlainKey && key === 'h') {
+        event.preventDefault();
+        toggleShowPorts();
+        return;
+      }
+
+      if (isPlainKey && key === 'm') {
+        event.preventDefault();
+        setShowMinimap((prev) => !prev);
+        return;
+      }
+
+      if (event.key === 'Escape' && (selectedNodeIds.length > 0 || selectedEdgeId)) {
+        event.preventDefault();
+        setSelectedNodeIds([]);
+        setSelectedEdgeId(null);
         return;
       }
 
@@ -1722,7 +2796,21 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleShortcut);
     return () => window.removeEventListener('keydown', handleShortcut);
-  }, [handleDelete, handleDuplicateSelection, handleRedo, handleUndo, moveSelectedNodesBy, openHelp, selectedEdgeId, selectedNodeIds]);
+  }, [
+    handleDelete,
+    handleDuplicateSelection,
+    handleCycleGridMode,
+    handleRedo,
+    handleToggleSwimlanes,
+    handleUndo,
+    isCommandPaletteOpen,
+    moveSelectedNodesBy,
+    openHelp,
+    selectedEdgeId,
+    selectedNodeIds,
+    setActiveTool,
+    toggleShowPorts
+  ]);
 
   const canGenerateFlow = isAIEnabled && aiPrompt.trim().length > 0 && !isAILoading;
   const prefetchAIModule = useCallback(() => {
@@ -1736,10 +2824,90 @@ const App: React.FC = () => {
       : hasRecoverySnapshot
         ? 'Backup: Available'
         : 'Backup: Not yet created';
+  const saveStatusLabel = formatSavedTimestamp(saveStatus.savedAt);
+  const workspaceDisplayName = activeWorkspace?.name || DEFAULT_WORKSPACE_NAME;
+  const recentWorkspaces = useMemo(
+    () =>
+      workspaceIndex.map((workspace) => ({
+        workspaceId: workspace.workspaceId,
+        name: workspace.name,
+        shortId: getWorkspaceShortId(workspace.workspaceId),
+        lastOpenedAt: workspace.lastOpenedAt,
+        isActive: workspace.workspaceId === activeWorkspaceId
+      })),
+    [activeWorkspaceId, workspaceIndex]
+  );
+
+  const commandActions = useMemo<CommandAction[]>(
+    () => [
+      {
+        id: 'export-json',
+        label: 'Export JSON',
+        keywords: ['file', 'download', 'json'],
+        onSelect: () => {
+          void handleExportDiagram();
+        }
+      },
+      {
+        id: 'export-png',
+        label: 'Export PNG',
+        keywords: ['file', 'download', 'image'],
+        onSelect: () => {
+          void handleExportPng();
+        }
+      },
+      {
+        id: 'export-pdf',
+        label: 'Export PDF',
+        keywords: ['file', 'download', 'document'],
+        onSelect: () => {
+          void handleExportPdf();
+        }
+      },
+      {
+        id: 'import-json',
+        label: 'Import JSON',
+        keywords: ['file', 'upload', 'restore'],
+        onSelect: () => importInputRef.current?.click()
+      },
+      {
+        id: 'restore-backup',
+        label: 'Restore Backup',
+        keywords: ['file', 'recovery'],
+        onSelect: handleRestoreRecovery
+      },
+      ...(isAIEnabled
+        ? [
+            {
+              id: 'open-ai-launcher',
+              label: 'Open AI Launcher',
+              keywords: ['assistant', 'ai', 'generate'],
+              onSelect: () => {
+                prefetchAIModule();
+                setIsAIModalOpen(true);
+              }
+            } satisfies CommandAction
+          ]
+        : [])
+    ],
+    [handleExportDiagram, handleExportPdf, handleExportPng, handleRestoreRecovery, isAIEnabled, prefetchAIModule]
+  );
+
+  const handleOpenInsertPanel = useCallback(() => {
+    setIsSidebarOpen(true);
+    window.requestAnimationFrame(() => {
+      const searchInput = document.querySelector<HTMLInputElement>('[data-testid="sidebar-search-input"]');
+      searchInput?.focus();
+      searchInput?.select();
+    });
+  }, []);
 
   return (
     <div className={`finflow-app-shell flex h-screen flex-col overflow-hidden ${isDarkMode ? 'dark text-slate-100' : 'text-slate-900'}`}>
       <TopBar
+        workspaceName={workspaceDisplayName}
+        workspaceShortId={activeWorkspaceShortId}
+        recentWorkspaces={recentWorkspaces}
         isDarkMode={isDarkMode}
         nodesCount={nodes.length}
         edgesCount={edges.length}
@@ -1748,6 +2916,11 @@ const App: React.FC = () => {
         recoveryLastSavedAt={recoveryLastSavedAt}
         feedbackHref={feedbackHref}
         storageWarning={storageWarning}
+        saveStatus={{
+          state: saveStatus.state,
+          savedAtLabel: saveStatusLabel,
+          errorText: saveStatus.errorText
+        }}
         isSidebarOpen={isSidebarOpen}
         isInspectorOpen={isInspectorOpen}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
@@ -1758,7 +2931,21 @@ const App: React.FC = () => {
         onRedo={handleRedo}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
-        onOpenCanvasControls={handleOpenCanvasControls}
+        onFitView={handleFitView}
+        onCenterDiagram={handleCenterDiagram}
+        onToggleGrid={handleCycleGridMode}
+        onToggleSnap={() => setSnapToGrid((prev) => !prev)}
+        onToggleSwimlanes={handleToggleSwimlanes}
+        onTogglePorts={toggleShowPorts}
+        onToggleMinimap={() => setShowMinimap((prev) => !prev)}
+        onToggleRiskOverlay={handleToggleRiskOverlay}
+        onToggleLedgerOverlay={handleToggleLedgerOverlay}
+        snapToGrid={snapToGrid}
+        showSwimlanes={showSwimlanes}
+        showPorts={showPorts}
+        showMinimap={showMinimap}
+        overlayMode={overlayMode}
+        gridMode={gridMode}
         canUndo={past.length > 0}
         canRedo={future.length > 0}
         isAIEnabled={isAIEnabled}
@@ -1767,13 +2954,17 @@ const App: React.FC = () => {
           prefetchAIModule();
           setIsAIModalOpen(true);
         }}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onRestoreRecovery={handleRestoreRecovery}
+        onCreateWorkspace={handleCreateWorkspaceFromPrompt}
+        onOpenWorkspace={handleOpenWorkspace}
         onResetCanvas={handleResetCanvas}
         onImportDiagram={() => importInputRef.current?.click()}
         onExportDiagram={handleExportDiagram}
         onExportSvg={handleExportSvg}
         onExportPng={handleExportPng}
         onExportPdf={handleExportPdf}
+        onRetrySave={handleRetrySave}
       />
 
       <input
@@ -1785,6 +2976,12 @@ const App: React.FC = () => {
       />
 
       <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} isDarkMode={isDarkMode} />
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        isDarkMode={isDarkMode}
+        actions={commandActions}
+      />
 
       {isAIEnabled && isAIModalOpen ? (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-[2px]">
@@ -1901,14 +3098,33 @@ const App: React.FC = () => {
         )}
 
         <div
-          className={`flex flex-col overflow-hidden rounded-2xl border transition-all duration-200 ${
+          className={`shell-panel flex flex-col overflow-hidden transition-all duration-200 ${
             isMobileViewport
               ? `absolute inset-y-0 left-0 z-40 w-[min(92vw,22rem)] transform ${
                   isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-[110%]'
                 }`
-              : `${isSidebarOpen ? 'w-[22rem]' : 'w-[3.5rem]'} relative z-30`
-          } ${isDarkMode ? 'border-slate-700 bg-slate-900/95' : 'border-slate-200 bg-white/95'}`}
+              : 'relative z-30'
+          } bg-surface-panel/90`}
+          style={
+            isMobileViewport
+              ? undefined
+              : {
+                  width: isSidebarOpen ? `${sidebarWidth}px` : `${COLLAPSED_SIDEBAR_WIDTH}px`
+                }
+          }
         >
+          {!isMobileViewport && isSidebarOpen ? (
+            <div
+              role="separator"
+              aria-label="Resize left panel"
+              className={`resize-handle-x right-0 ${activeResizePanel === 'sidebar' ? 'is-active' : ''}`}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setActiveResizePanel('sidebar');
+              }}
+            />
+          ) : null}
+
           <Sidebar
             onAddNode={(type) => {
               handleAddNode(type);
@@ -1917,17 +3133,16 @@ const App: React.FC = () => {
               }
             }}
             isDarkMode={isDarkMode}
-            overlayMode={overlayMode}
-            onToggleRiskOverlay={handleToggleRiskOverlay}
-            onToggleLedgerOverlay={handleToggleLedgerOverlay}
             isExpanded={isSidebarOpen}
             onToggleExpanded={() => setIsSidebarOpen((prev) => !prev)}
+            showQuickStart={isQuickStartVisible}
+            onDismissQuickStart={dismissQuickStart}
           />
         </div>
 
         <div
           className={`relative ${isMobileViewport ? 'mx-0' : 'mx-2'} flex-1 overflow-hidden rounded-2xl border ${
-            isDarkMode ? 'border-slate-700 bg-slate-900/85' : 'border-slate-200 bg-white/80'
+            isDarkMode ? 'border-divider/80 bg-surface-canvas/95' : 'border-divider/70 bg-surface-canvas/95'
           }`}
           data-testid="canvas-dropzone"
           ref={containerRef}
@@ -1961,6 +3176,13 @@ const App: React.FC = () => {
                 }
               }
             }}
+            isMobileViewport={isMobileViewport}
+            onDeleteSelection={handleDelete}
+            onDuplicateSelection={handleDuplicateSelection}
+            onRenameSelection={handleRenameSelection}
+            onActivateConnectTool={() => setActiveTool('draw')}
+            onToggleQuickAttribute={handleToggleQuickAttribute}
+            isQuickAttributePinned={pinnedNodeAttributes.includes('account')}
             onAddNode={handleAddNode}
             showSwimlanes={showSwimlanes}
             swimlaneLabels={swimlaneLabels}
@@ -1970,46 +3192,8 @@ const App: React.FC = () => {
             viewport={viewport}
             onViewportChange={setViewport}
             exportLayerRef={exportLayerRef}
+            pinnedNodeAttributes={pinnedNodeAttributes}
           />
-
-          <div className="absolute left-2 top-2 z-20 max-w-[calc(100%-1rem)] md:left-3 md:top-3">
-            {isQuickStartVisible && (
-              <div
-                data-testid="quickstart-panel"
-                className={`mb-2 w-[min(22rem,calc(100vw-1rem))] rounded-lg border px-3 py-3 shadow-sm ${
-                  isDarkMode ? 'border-blue-500/30 bg-slate-900 text-slate-100' : 'border-blue-200 bg-white text-slate-700'
-                }`}
-              >
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600 dark:text-blue-300">Quick Start</h2>
-                    <p className="mt-1 text-[11px] leading-relaxed">Complete this MVP flow once:</p>
-                  </div>
-                  <button
-                    data-testid="quickstart-dismiss"
-                    onClick={dismissQuickStart}
-                    className={`rounded-md border px-2 py-1 text-[10px] font-semibold ${
-                      isDarkMode ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-slate-300 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    Dismiss
-                  </button>
-                </div>
-                <ol className="space-y-1 pl-4 text-[11px]">
-                  <li>1. Add or edit a node/connector.</li>
-                  <li>2. Click <span className="mono">Export JSON</span>.</li>
-                  <li>3. Click <span className="mono">Reset</span>, then <span className="mono">Import JSON</span> to restore.</li>
-                </ol>
-              </div>
-            )}
-            <div
-              className={`pointer-events-none hidden rounded-md border px-3 py-2 text-[11px] font-medium shadow-sm md:block ${
-                isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-300 bg-white text-slate-600'
-              }`}
-            >
-              Tip: Shift-click or drag-select for multi-select, hold <span className="mono">Space</span> to pan, use <span className="mono">Cmd/Ctrl+D</span> to duplicate.
-            </div>
-          </div>
 
           <FloatingContextBar
             isDarkMode={isDarkMode}
@@ -2029,24 +3213,48 @@ const App: React.FC = () => {
             selectedNodeCount={selectedNodeIds.length}
             hasSelectedEdge={hasSelectedEdge}
             activeEdgeStyle={activeEdgeStyle}
+            activeEdgePathType={activeEdgePathType}
             onSetEdgeStyle={handleSetSelectedEdgeStyle}
+            onSetEdgePathType={handleSetSelectedEdgePathType}
             arrowHeadEnabled={activeArrowConfig.showArrowHead}
             midArrowEnabled={activeArrowConfig.showMidArrow}
             onToggleArrowHead={handleToggleSelectedArrowHead}
             onToggleMidArrow={handleToggleSelectedMidArrow}
+            onRenameSelection={handleRenameSelection}
+            onToggleQuickAttribute={handleToggleQuickAttribute}
+            isQuickAttributePinned={pinnedNodeAttributes.includes('account')}
           />
 
         </div>
 
         <div
-          className={`overflow-hidden rounded-2xl border transition-[width,transform,opacity] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
+          className={`shell-panel overflow-hidden transition-[width,transform,opacity] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
             isMobileViewport
               ? `absolute inset-y-0 right-0 z-40 w-[min(92vw,340px)] transform ${
                   isInspectorOpen ? 'translate-x-0 opacity-100 shadow-xl' : 'translate-x-[110%] opacity-0'
                 }`
-              : `${isInspectorOpen ? 'w-[340px] translate-x-0 opacity-100' : 'w-0 translate-x-2 opacity-0'} relative z-30`
-          } ${isDarkMode ? 'border-slate-700 bg-slate-800/95' : 'border-slate-200 bg-white/95'}`}
+              : `${isInspectorOpen ? 'translate-x-0 opacity-100' : 'w-0 translate-x-2 opacity-0'} relative z-30`
+          } bg-surface-panel/90`}
+          style={
+            isMobileViewport
+              ? undefined
+              : {
+                  width: isInspectorOpen ? `${inspectorWidth}px` : '0px'
+                }
+          }
         >
+          {!isMobileViewport && isInspectorOpen ? (
+            <div
+              role="separator"
+              aria-label="Resize inspector panel"
+              className={`resize-handle-x left-0 ${activeResizePanel === 'inspector' ? 'is-active' : ''}`}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setActiveResizePanel('inspector');
+              }}
+            />
+          ) : null}
+
           {isInspectorOpen && (
             <Inspector
               nodes={nodes}
@@ -2055,33 +3263,13 @@ const App: React.FC = () => {
               selectedEdgeId={selectedEdgeId}
               onUpdateNode={handleUpdateNode}
               onUpdateEdge={handleUpdateEdge}
-              isDarkMode={isDarkMode}
               onClose={() => setIsInspectorOpen(false)}
-              showSwimlanes={showSwimlanes}
-              onToggleSwimlanes={handleToggleSwimlanes}
-              swimlaneLabels={swimlaneLabels}
-              onAddSwimlane={handleAddSwimlane}
-              onRemoveSwimlane={handleRemoveSwimlane}
-              onUpdateSwimlaneLabel={handleUpdateSwimlaneLabel}
-              gridMode={gridMode}
-              onSetGridMode={setGridMode}
-              snapToGrid={snapToGrid}
-              onToggleSnapToGrid={() => setSnapToGrid((prev) => !prev)}
-              showPorts={showPorts}
-              onTogglePorts={toggleShowPorts}
-              showMinimap={showMinimap}
-              onToggleMinimap={() => setShowMinimap((prev) => !prev)}
-              laneGroupingMode={laneGroupingMode}
-              onSetLaneGroupingMode={setLaneGroupingMode}
-              hasRecoverySnapshot={hasRecoverySnapshot}
-              onRestoreRecovery={handleRestoreRecovery}
-              onResetCanvas={handleResetCanvas}
-              onImportDiagram={() => importInputRef.current?.click()}
-              onExportDiagram={handleExportDiagram}
-              onExportSvg={handleExportSvg}
-              onExportPng={handleExportPng}
-              onExportPdf={handleExportPdf}
-              activeTabRequest={inspectorTabRequest}
+              pinnedNodeAttributes={pinnedNodeAttributes}
+              onTogglePinnedNodeAttribute={togglePinnedNodeAttribute}
+              onApplyNodeTemplateToSimilar={handleApplyNodeTemplateToSimilar}
+              onDuplicateSelection={handleDuplicateSelection}
+              onOpenInsertPanel={handleOpenInsertPanel}
+              onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             />
           )}
         </div>
