@@ -59,7 +59,7 @@ const FunctionToolbar: React.FC<FunctionToolbarProps> = ({
   }, []);
 
   React.useEffect(() => {
-    const onWindowClickCapture = (event: MouseEvent) => {
+    const onWindowPointerDownCapture = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (!menuRef.current?.open) return;
@@ -75,10 +75,10 @@ const FunctionToolbar: React.FC<FunctionToolbarProps> = ({
       closeMenu();
     };
 
-    window.addEventListener('click', onWindowClickCapture, true);
+    window.addEventListener('pointerdown', onWindowPointerDownCapture, true);
     window.addEventListener('keydown', onWindowKeyDown);
     return () => {
-      window.removeEventListener('click', onWindowClickCapture, true);
+      window.removeEventListener('pointerdown', onWindowPointerDownCapture, true);
       window.removeEventListener('keydown', onWindowKeyDown);
     };
   }, [closeMenu]);
@@ -116,6 +116,7 @@ const FunctionToolbar: React.FC<FunctionToolbarProps> = ({
         <div
           data-testid="toolbar-file-menu"
           className="menu-panel absolute right-0 z-40 mt-1.5 min-w-[14.5rem]"
+          data-canvas-interactive="true"
         >
           <div className="menu-section-label">Export</div>
           <button

@@ -882,9 +882,10 @@ const Inspector: React.FC<InspectorProps> = ({
   }, [edgeValues, selectedEdge, onUpdateEdge]);
 
   const renderEmptyState = () => (
-    <div className="mb-3 rounded-lg border border-divider/50 bg-surface-elevated/70 p-3.5 text-left shadow-[var(--ff-shadow-soft)]">
-      <p className="text-[13px] font-semibold text-text-primary">Nothing selected</p>
-      <p className="mt-1 text-[12px] text-text-muted">Select a node, edge, or lane to edit properties.</p>
+    <div className="mb-3 rounded-lg border border-divider/45 bg-surface-elevated/65 p-3 text-left shadow-[var(--ff-shadow-soft)]">
+      <p className="text-[12px] text-text-muted">
+        Select a node or edge to edit properties, or start by inserting a block.
+      </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="secondary" onClick={onOpenInsertPanel}>
           Open Insert

@@ -4,6 +4,33 @@ import ActionOverflowSheet from './bottom/ActionOverflowSheet';
 import BottomToolDock from './bottom/BottomToolDock';
 import SelectionActionTray from './bottom/SelectionActionTray';
 
+const DevEnvBadge: React.FC = () => {
+  const [origin, setOrigin] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setOrigin(window.location.origin);
+  }, []);
+
+  // Dev-only, visual guard to prevent "wrong localhost port" confusion.
+  if (!import.meta.env.DEV) return null;
+  if (!origin) return null;
+
+  const label = origin.replace(/^https?:\/\//, '');
+
+  return (
+    <div className="pointer-events-none fixed bottom-2 right-2 z-20">
+      <div
+        data-testid="dev-env-badge"
+        aria-hidden="true"
+        className="rounded-full border border-divider/35 bg-surface-panel/70 px-2 py-1 text-[10px] font-semibold text-text-muted/90 shadow-sm backdrop-blur"
+      >
+        DEV · {label}
+      </div>
+    </div>
+  );
+};
+
 type FloatingContextBarProps = {
   isDarkMode: boolean;
   isMobileViewport: boolean;
@@ -131,6 +158,8 @@ const FloatingContextBar: React.FC<FloatingContextBarProps> = ({
           onDistribute={onDistribute}
         />
       ) : null}
+
+      <DevEnvBadge />
     </>
   );
 };

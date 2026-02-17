@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   AlertTriangle,
+  Bot,
   Check,
   CheckCircle2,
   Command,
@@ -20,7 +21,6 @@ import {
 } from 'lucide-react';
 import type { GridMode } from '../../types';
 import FunctionToolbar from './FunctionToolbar';
-import { Chip } from '../ui/Chip';
 
 type SaveState = 'saving' | 'saved' | 'error';
 
@@ -192,7 +192,7 @@ const TopBar: React.FC<TopBarProps> = ({
   }, []);
 
   React.useEffect(() => {
-    const onWindowClickCapture = (event: MouseEvent) => {
+    const onWindowPointerDownCapture = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
       [statusDetailsRef, viewDetailsRef].forEach((ref) => {
@@ -210,10 +210,10 @@ const TopBar: React.FC<TopBarProps> = ({
       closeDetails();
     };
 
-    window.addEventListener('click', onWindowClickCapture, true);
+    window.addEventListener('pointerdown', onWindowPointerDownCapture, true);
     window.addEventListener('keydown', onWindowKeyDown);
     return () => {
-      window.removeEventListener('click', onWindowClickCapture, true);
+      window.removeEventListener('pointerdown', onWindowPointerDownCapture, true);
       window.removeEventListener('keydown', onWindowKeyDown);
     };
   }, [closeDetails]);
@@ -259,8 +259,22 @@ const TopBar: React.FC<TopBarProps> = ({
             >
               <SaveBadgeIcon state={saveStatus.state} />
               <span className="max-w-[13rem] truncate">{saveStatusText}</span>
+              {!isAIEnabled ? (
+                <span
+                  data-testid="ai-disabled-badge"
+                  title="AI is off for MVP"
+                  aria-label="AI is off for MVP"
+                  className="ml-1 inline-flex items-center gap-1 rounded-full border border-divider/45 bg-surface-panel/70 px-2 py-0.5 text-[10px] font-semibold text-text-muted"
+                >
+                  <Bot className="h-3 w-3" aria-hidden="true" />
+                  <span className="sr-only">AI Off</span>
+                </span>
+              ) : null}
             </summary>
-            <div className="status-pill-menu absolute left-0 z-40 mt-1.5 min-w-[16.5rem]">
+            <div
+              className="status-pill-menu absolute left-0 z-40 mt-1.5 min-w-[16.5rem]"
+              data-canvas-interactive="true"
+            >
               <div className="menu-section-label">System</div>
               <div className="px-2 py-1">
                 <div className="text-[11px] font-semibold text-text-primary">{saveStatusText}</div>
@@ -283,15 +297,6 @@ const TopBar: React.FC<TopBarProps> = ({
               ) : null}
             </div>
           </details>
-          {!isAIEnabled ? (
-            <Chip
-              tone="default"
-              data-testid="ai-disabled-badge"
-              className="status-chip h-7 !px-2 !text-[11px] font-semibold opacity-85"
-            >
-              AI Off
-            </Chip>
-          ) : null}
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
@@ -346,7 +351,11 @@ const TopBar: React.FC<TopBarProps> = ({
             >
               <Settings2 className="h-3.5 w-3.5" />
             </summary>
-            <div data-testid="toolbar-view-menu" className="menu-panel absolute right-0 z-40 mt-1.5 min-w-[14rem]">
+            <div
+              data-testid="toolbar-view-menu"
+              className="menu-panel absolute right-0 z-40 mt-1.5 min-w-[14rem]"
+              data-canvas-interactive="true"
+            >
               <div className="menu-section-label">Canvas</div>
               <button
                 type="button"

@@ -51,6 +51,7 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
   const zoomPercent = Math.round(zoom * 100);
   const commonZoomLevels = [50, 75, 100, 125, 150, 200];
   const zoomDetailsRef = useRef<HTMLDetailsElement>(null);
+  const showInlineZoomButtons = !isMobileViewport;
 
   const closeZoomMenu = useCallback(() => {
     const details = zoomDetailsRef.current;
@@ -86,7 +87,7 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
   }, []);
 
   return (
-    <div data-testid="bottom-tool-dock" className="ff-bottom-dock">
+    <div data-testid="bottom-tool-dock" className="ff-bottom-dock" data-canvas-interactive="true">
       <button
         type="button"
         data-testid="bottom-tool-select"
@@ -153,6 +154,7 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
         aria-label="Zoom out"
         title="Zoom out (Ctrl/Cmd -)"
         className={dockButtonClass()}
+        style={{ display: showInlineZoomButtons ? undefined : 'none' }}
       >
         <Minus className="h-4 w-4" />
       </button>
@@ -169,6 +171,41 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
         </summary>
         <div data-testid="bottom-zoom-menu" className="menu-panel ff-bottom-zoom-menu">
           <div className="menu-section-label">Zoom</div>
+          {!showInlineZoomButtons ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  onZoomIn();
+                  closeZoomMenu();
+                }}
+                className="menu-item"
+              >
+                Zoom in
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onZoomOut();
+                  closeZoomMenu();
+                }}
+                className="menu-item"
+              >
+                Zoom out
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onFitView();
+                  closeZoomMenu();
+                }}
+                className="menu-item"
+              >
+                Fit view
+              </button>
+              <div className="menu-separator" />
+            </>
+          ) : null}
           <button
             type="button"
             data-testid="bottom-zoom-reset-100"
@@ -204,6 +241,7 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
         aria-label="Zoom in"
         title="Zoom in (Ctrl/Cmd +)"
         className={dockButtonClass()}
+        style={{ display: showInlineZoomButtons ? undefined : 'none' }}
       >
         <Plus className="h-4 w-4" />
       </button>
@@ -215,6 +253,7 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
         aria-label="Fit view"
         title="Fit to view"
         className={dockButtonClass()}
+        style={{ display: showInlineZoomButtons ? undefined : 'none' }}
       >
         <Maximize2 className="h-4 w-4" />
       </button>
