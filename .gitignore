@@ -17,6 +17,7 @@ playwright-report
 test-results
 output
 .playwright-cli
+scratch
 
 # Editor directories and files
 .vscode/*

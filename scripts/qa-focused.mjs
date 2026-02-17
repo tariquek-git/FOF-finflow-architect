@@ -25,18 +25,22 @@ const saveJson = (name, payload) => {
 };
 
 const ensureExportMenuOpen = async (page) => {
-  const pngButton = page.getByTestId('toolbar-export-png').first();
-  if (await pngButton.isVisible()) return;
-  const moreSummary = page.locator('summary:has-text("More")').first();
-  if (await moreSummary.count()) {
-    await moreSummary.click();
-    await sleep(150);
-  }
+  const strip = page.getByTestId('primary-actions-strip').first();
+  const menu = strip.getByTestId('toolbar-file-menu').first();
+  const isMenuVisible = await menu.isVisible().catch(() => false);
+  if (isMenuVisible) return;
+
+  const trigger = strip.getByTestId('toolbar-file-trigger').first();
+  if (!(await trigger.count())) return;
+
+  await trigger.click();
+  await menu.waitFor({ state: 'visible' });
 };
 
 const triggerDownload = async (page, trigger) => {
   try {
-    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 12000 }), trigger()]);
+    // PNG export (html2canvas) can be slow in CI/headless; give it room to finish.
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), trigger()]);
     return download;
   } catch {
     return null;
@@ -177,12 +181,13 @@ const desktopQa = async (context, result) => {
   result.desktop.inspectorValuesPersistInPlace = custodyValue === 'Desk QA Custody Holder' && kycValue === 'Desk QA Compliance';
 
   await ensureExportMenuOpen(page);
+  const exportMenu = page.getByTestId('primary-actions-strip').first().getByTestId('toolbar-file-menu').first();
   const pngDownload = await triggerDownload(page, () =>
-    page.getByTestId('toolbar-export-png').first().click({ force: true })
+    exportMenu.getByTestId('toolbar-export-png').click()
   );
   await ensureExportMenuOpen(page);
   const pdfDownload = await triggerDownload(page, () =>
-    page.getByTestId('toolbar-export-pdf').first().click({ force: true })
+    exportMenu.getByTestId('toolbar-export-pdf').click()
   );
 
   result.desktop.pngExported = pngDownload
@@ -421,7 +426,7 @@ const run = async () => {
   };
 
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
 
   try {
     await desktopQa(context, result);
