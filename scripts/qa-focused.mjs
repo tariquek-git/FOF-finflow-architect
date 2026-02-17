@@ -3,6 +3,21 @@ import path from 'node:path';
 import { chromium } from '@playwright/test';
 
 const BASE_URL = process.env.QA_BASE_URL || 'http://127.0.0.1:3003/';
+// If QA_BASE_URL includes `?fresh=1`, the app clears storage on boot (index.tsx),
+// which would wipe seeded sessionStorage used by the performance pass. Use a
+// variant without `fresh=1` for seeded/perf scenarios.
+const PERF_BASE_URL = (() => {
+  try {
+    const url = new URL(BASE_URL);
+    if (url.searchParams.get('fresh') === '1') {
+      url.searchParams.delete('fresh');
+      return url.toString();
+    }
+    return BASE_URL;
+  } catch {
+    return BASE_URL;
+  }
+})();
 const ARTIFACT_ROOT = path.resolve('qa-artifacts');
 const runLabel = new Date().toISOString().replace(/[:.]/g, '-');
 const outDir = path.join(ARTIFACT_ROOT, runLabel);
@@ -306,7 +321,7 @@ const performanceQa = async (browser, result) => {
   const page = await context.newPage();
 
   const tLoadStart = now();
-  await page.goto(BASE_URL);
+  await page.goto(PERF_BASE_URL);
   await page.waitForLoadState('networkidle');
   await page.locator('[data-testid="canvas-dropzone"]').waitFor({ state: 'visible' });
   const tLoadEnd = now();
