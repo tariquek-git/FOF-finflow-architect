@@ -8,9 +8,13 @@ const runLabel = new Date().toISOString().replace(/[:.]/g, '-');
 const outDir = path.join(ARTIFACT_ROOT, runLabel);
 fs.mkdirSync(outDir, { recursive: true });
 
-const DIAGRAM_STORAGE_KEY = 'finflow-builder.diagram.v1';
-const LAYOUT_STORAGE_KEY = 'finflow-builder.layout.v1';
+const WORKSPACE_INDEX_STORAGE_KEY = 'fof:workspaces:index';
+const ACTIVE_WORKSPACE_STORAGE_KEY = 'fof:active-workspace-id';
+const WORKSPACE_STORAGE_PREFIX = 'fof:workspace';
 const ONBOARDING_DISMISSED_STORAGE_KEY = 'finflow-builder.quickstart.dismissed.v1';
+
+const getWorkspaceStorageKey = (workspaceId) => `${WORKSPACE_STORAGE_PREFIX}:${workspaceId}`;
+const getWorkspaceLayoutStorageKey = (workspaceId) => `${WORKSPACE_STORAGE_PREFIX}:${workspaceId}:layout`;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -28,6 +32,25 @@ const ensureExportMenuOpen = async (page) => {
     await moreSummary.click();
     await sleep(150);
   }
+};
+
+const triggerDownload = async (page, trigger) => {
+  try {
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 12000 }), trigger()]);
+    return download;
+  } catch {
+    return null;
+  }
+};
+
+const insertStarterTemplateIfMissing = async (page) => {
+  const starter = page.locator('[data-node-id="starter-sponsor"]').first();
+  if (await starter.count()) return;
+  const strip = page.getByTestId('primary-actions-strip').first();
+  await strip.getByTestId('toolbar-file-trigger').click();
+  const menu = strip.getByTestId('toolbar-file-menu').first();
+  await menu.getByTestId('toolbar-insert-starter-template').click();
+  await starter.waitFor({ state: 'visible' });
 };
 
 const clickNodeByLabel = async (page, label, shift = false) => {
@@ -112,28 +135,35 @@ const desktopQa = async (context, result) => {
   const page = await context.newPage();
   await page.goto(BASE_URL);
   await page.waitForLoadState('networkidle');
+  await insertStarterTemplateIfMissing(page);
 
   const bottomDock = page.getByTestId('bottom-tool-dock');
   const tray = page.getByTestId('selection-action-tray');
+  const nodeToolbar = page.getByTestId('node-context-toolbar');
   await bottomDock.waitFor({ state: 'visible' });
 
   result.desktop.bottomDockVisible = true;
   result.desktop.trayHiddenAtRest = (await tray.count()) === 0;
 
   await clickNodeByLabel(page, 'Sponsor Bank');
-  await tray.waitFor({ state: 'visible' });
-  result.desktop.trayVisibleOnNode = true;
+  const trayVisibleOnNode = await tray.isVisible().catch(() => false);
+  if (!trayVisibleOnNode) {
+    await nodeToolbar.waitFor({ state: 'visible' });
+  }
+  result.desktop.trayVisibleOnNode = trayVisibleOnNode || (await nodeToolbar.isVisible().catch(() => false));
 
   await page.screenshot({ path: path.join(outDir, 'desktop-node-selection.png'), fullPage: true });
 
   await page.getByRole('button', { name: 'Connect tool' }).click();
   await sleep(120);
-  result.desktop.trayHiddenInConnectMode = (await tray.count()) === 0;
+  const trayVisibleInConnectMode = await tray.isVisible().catch(() => false);
+  const nodeToolbarVisibleInConnectMode = await nodeToolbar.isVisible().catch(() => false);
+  result.desktop.trayHiddenInConnectMode = !trayVisibleInConnectMode && !nodeToolbarVisibleInConnectMode;
   await page.screenshot({ path: path.join(outDir, 'desktop-connect-mode.png'), fullPage: true });
 
   await page.getByRole('button', { name: 'Select tool' }).click();
   await page.getByTestId('toolbar-insert-connector').click();
-  await page.locator('button[title="dashed line style"]').waitFor({ state: 'visible' });
+  await page.getByText('Line style').first().waitFor({ state: 'visible' });
   result.desktop.edgeActionsVisibleOnEdgeSelection = true;
   await page.screenshot({ path: path.join(outDir, 'desktop-edge-selection.png'), fullPage: true });
 
@@ -147,18 +177,20 @@ const desktopQa = async (context, result) => {
   result.desktop.inspectorValuesPersistInPlace = custodyValue === 'Desk QA Custody Holder' && kycValue === 'Desk QA Compliance';
 
   await ensureExportMenuOpen(page);
-  const [pngDownload] = await Promise.all([
-    page.waitForEvent('download'),
+  const pngDownload = await triggerDownload(page, () =>
     page.getByTestId('toolbar-export-png').first().click({ force: true })
-  ]);
+  );
   await ensureExportMenuOpen(page);
-  const [pdfDownload] = await Promise.all([
-    page.waitForEvent('download'),
+  const pdfDownload = await triggerDownload(page, () =>
     page.getByTestId('toolbar-export-pdf').first().click({ force: true })
-  ]);
+  );
 
-  result.desktop.pngExported = (await pngDownload.suggestedFilename()).toLowerCase().endsWith('.png');
-  result.desktop.pdfExported = (await pdfDownload.suggestedFilename()).toLowerCase().endsWith('.pdf');
+  result.desktop.pngExported = pngDownload
+    ? (await pngDownload.suggestedFilename()).toLowerCase().endsWith('.png')
+    : false;
+  result.desktop.pdfExported = pdfDownload
+    ? (await pdfDownload.suggestedFilename()).toLowerCase().endsWith('.pdf')
+    : false;
 
   const metaStableChanges = await page.evaluate(async () => {
     const target = document.querySelector('[data-testid="node-meta-starter-sponsor"]');
@@ -186,6 +218,7 @@ const mobileQa = async (browser, result) => {
   const page = await context.newPage();
   await page.goto(BASE_URL);
   await page.waitForLoadState('networkidle');
+  await insertStarterTemplateIfMissing(page);
 
   await clickNodeByLabel(page, 'Sponsor Bank');
   const moreButton = page.getByTestId('bottom-more-actions');
@@ -209,27 +242,59 @@ const mobileQa = async (browser, result) => {
 
 const performanceQa = async (browser, result) => {
   const diagram = buildLargeDiagram();
+  const snapshot = {
+    schemaVersion: 2,
+    nodes: diagram.nodes,
+    edges: diagram.edges,
+    drawings: diagram.drawings
+  };
+  const workspaceId = 'qa-perf-workspace';
+  const nowIso = new Date().toISOString();
+  const workspaceSummary = [
+    {
+      workspaceId,
+      name: 'QA Perf Workspace',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      lastOpenedAt: nowIso
+    }
+  ];
+  const layout = {
+    showSwimlanes: true,
+    swimlaneLabels: ['Funding', 'Authorization', 'Clearing', 'Settlement'],
+    gridMode: 'dots',
+    isDarkMode: false,
+    showPorts: false
+  };
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.addInitScript(
-    ({ DIAGRAM_STORAGE_KEY: dKey, LAYOUT_STORAGE_KEY: lKey, ONBOARDING_DISMISSED_STORAGE_KEY: qKey, snapshot }) => {
-      window.localStorage.setItem(dKey, JSON.stringify(snapshot));
-      window.localStorage.setItem(
-        lKey,
-        JSON.stringify({
-          showSwimlanes: true,
-          swimlaneLabels: ['Funding', 'Authorization', 'Clearing', 'Settlement'],
-          gridMode: 'dots',
-          isDarkMode: false,
-          showPorts: false
-        })
-      );
+    ({
+      WORKSPACE_INDEX_STORAGE_KEY: workspaceIndexKey,
+      ACTIVE_WORKSPACE_STORAGE_KEY: activeWorkspaceKey,
+      workspaceDiagramKey,
+      workspaceLayoutKey,
+      ONBOARDING_DISMISSED_STORAGE_KEY: qKey,
+      workspaceSummary,
+      workspaceId,
+      snapshot,
+      layout
+    }) => {
+      window.localStorage.setItem(workspaceIndexKey, JSON.stringify(workspaceSummary));
+      window.localStorage.setItem(activeWorkspaceKey, workspaceId);
+      window.localStorage.setItem(workspaceDiagramKey, JSON.stringify(snapshot));
+      window.localStorage.setItem(workspaceLayoutKey, JSON.stringify(layout));
       window.localStorage.setItem(qKey, 'true');
     },
     {
-      DIAGRAM_STORAGE_KEY,
-      LAYOUT_STORAGE_KEY,
+      WORKSPACE_INDEX_STORAGE_KEY,
+      ACTIVE_WORKSPACE_STORAGE_KEY,
+      workspaceDiagramKey: getWorkspaceStorageKey(workspaceId),
+      workspaceLayoutKey: getWorkspaceLayoutStorageKey(workspaceId),
       ONBOARDING_DISMISSED_STORAGE_KEY,
-      snapshot: diagram
+      workspaceSummary,
+      workspaceId,
+      snapshot,
+      layout
     }
   );
 
@@ -249,6 +314,7 @@ const performanceQa = async (browser, result) => {
   const canvas = page.locator('[data-testid="canvas-dropzone"]');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('Canvas not found for performance pass');
+  await canvas.click({ position: { x: 24, y: 24 } });
 
   const tPanStart = now();
   await page.keyboard.down('Space');
@@ -262,11 +328,13 @@ const performanceQa = async (browser, result) => {
       const el = document.querySelector(selector);
       return !!el && el.getAttribute('style') !== expected;
     },
-    { selector: '[data-testid="canvas-dropzone"] div.absolute.inset-0', expected: beforePan }
+    { selector: '[data-testid="canvas-dropzone"] div.absolute.inset-0', expected: beforePan },
+    { timeout: 12000 }
   );
   const tPanEnd = now();
 
-  const zoomOut = page.locator('button[title="Zoom out"]');
+  const zoomOut = page.locator('[data-testid="bottom-zoom-out"], button[title^="Zoom out"]').first();
+  await zoomOut.waitFor({ state: 'visible' });
   const tZoomStart = now();
   for (let i = 0; i < 6; i += 1) {
     await zoomOut.click();
@@ -274,8 +342,34 @@ const performanceQa = async (browser, result) => {
   const tZoomEnd = now();
 
   const nodeLocator = page.locator('[data-node-id]').first();
+  const visibleNodeCount = await page.locator('[data-node-id]').count();
+  if (visibleNodeCount === 0) {
+    result.performance = {
+      ...(result.performance || {}),
+      dataset: {
+        ...((result.performance && result.performance.dataset) || {}),
+        renderedNodes: renderedNodeCount,
+        renderedEdges: renderedEdgeCount
+      },
+      error: 'No renderable nodes found for drag performance sample'
+    };
+    await context.close();
+    return;
+  }
   const nodeBox = await nodeLocator.boundingBox();
-  if (!nodeBox) throw new Error('No visible node for drag performance pass');
+  if (!nodeBox) {
+    result.performance = {
+      ...(result.performance || {}),
+      dataset: {
+        ...((result.performance && result.performance.dataset) || {}),
+        renderedNodes: renderedNodeCount,
+        renderedEdges: renderedEdgeCount
+      },
+      error: 'Could not resolve visible node bounds for drag sample'
+    };
+    await context.close();
+    return;
+  }
 
   const tDragStart = now();
   await page.mouse.move(nodeBox.x + nodeBox.width / 2, nodeBox.y + nodeBox.height / 2);
