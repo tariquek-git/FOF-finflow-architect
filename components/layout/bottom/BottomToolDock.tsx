@@ -185,7 +185,7 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
               >
                 Fit view
               </button>
-              <div className="menu-separator" />
+              <div className="menu-divider-soft" aria-hidden="true" />
             </>
           ) : null}
           <button

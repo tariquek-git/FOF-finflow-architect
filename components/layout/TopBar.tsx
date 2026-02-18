@@ -253,7 +253,9 @@ const TopBar: React.FC<TopBarProps> = ({
                   <div className="mt-1 text-[11px] text-rose-700 dark:text-rose-300">{saveStatus.errorText}</div>
                 ) : null}
                 <div className="menu-meta-line">{backupStatusText}</div>
-                <div className="menu-meta-line">Storage: Session-only (export JSON to keep work)</div>
+                {storageWarning ? (
+                  <div className="menu-meta-line">Storage: Session-only (export JSON to keep work)</div>
+                ) : null}
                 <div className="menu-meta-line">
                   {isAIEnabled ? (isAILoading ? 'AI status: Running' : 'AI status: Ready') : 'AI status: Off for MVP'}
                 </div>
