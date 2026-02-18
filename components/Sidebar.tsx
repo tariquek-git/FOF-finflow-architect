@@ -224,6 +224,7 @@ const Sidebar = React.memo<SidebarProps>(({
 
     return (
       <div
+        data-testid="sidebar-search-results"
         className={`overflow-hidden rounded-lg border ${
           isDarkMode ? 'border-divider/30 bg-surface-elevated/38' : 'border-divider/30 bg-surface-elevated/62'
         }`}
