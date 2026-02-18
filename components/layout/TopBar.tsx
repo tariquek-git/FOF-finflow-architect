@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import type { GridMode } from '../../types';
 import FunctionToolbar from './FunctionToolbar';
+import { DetailsMenu } from '../ui/Menu';
 
 type SaveState = 'saving' | 'saved' | 'error';
 
@@ -182,48 +183,14 @@ const TopBar: React.FC<TopBarProps> = ({
   const statusDetailsRef = React.useRef<HTMLDetailsElement | null>(null);
   const viewDetailsRef = React.useRef<HTMLDetailsElement | null>(null);
 
-  const closeDetails = React.useCallback((targetRef?: React.RefObject<HTMLDetailsElement | null>) => {
-    const refs = [statusDetailsRef, viewDetailsRef];
-    refs.forEach((ref) => {
-      if (!ref.current?.open) return;
-      if (targetRef && ref !== targetRef) return;
-      ref.current.open = false;
-    });
-  }, []);
-
-  React.useEffect(() => {
-    const onWindowPointerDownCapture = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      [statusDetailsRef, viewDetailsRef].forEach((ref) => {
-        if (!ref.current?.open) return;
-        if (!ref.current.contains(target)) {
-          ref.current.open = false;
-        }
-      });
-    };
-
-    const onWindowKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (!statusDetailsRef.current?.open && !viewDetailsRef.current?.open) return;
-      event.preventDefault();
-      closeDetails();
-    };
-
-    window.addEventListener('pointerdown', onWindowPointerDownCapture, true);
-    window.addEventListener('keydown', onWindowKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', onWindowPointerDownCapture, true);
-      window.removeEventListener('keydown', onWindowKeyDown);
-    };
-  }, [closeDetails]);
-
   const runMenuAction = React.useCallback(
     (action: () => void, detailsRef: React.RefObject<HTMLDetailsElement | null>) => {
       action();
-      closeDetails(detailsRef);
+      if (detailsRef.current?.open) {
+        detailsRef.current.open = false;
+      }
     },
-    [closeDetails]
+    []
   );
 
   return (
@@ -251,30 +218,34 @@ const TopBar: React.FC<TopBarProps> = ({
             <span className="shrink-0 font-bold tracking-[0.08em]">{workspaceShortId}</span>
           </span>
 
-          <details ref={statusDetailsRef} className="relative">
-            <summary
-              data-testid="backup-status-indicator"
-              data-last-saved-at={recoveryLastSavedAt || ''}
-              className={`status-pill list-none cursor-pointer ${saveStatusToneClasses}`}
-            >
-              <SaveBadgeIcon state={saveStatus.state} />
-              <span className="max-w-[13rem] truncate">{saveStatusText}</span>
-              {!isAIEnabled ? (
-                <span
-                  data-testid="ai-disabled-badge"
-                  title="AI is off for MVP"
-                  aria-label="AI is off for MVP"
-                  className="ml-1 inline-flex items-center gap-1 rounded-full border border-divider/45 bg-surface-panel/70 px-2 py-0.5 text-[10px] font-semibold text-text-muted"
-                >
-                  <Bot className="h-3 w-3" aria-hidden="true" />
-                  <span className="sr-only">AI Off</span>
-                </span>
-              ) : null}
-            </summary>
-            <div
-              className="status-pill-menu absolute left-0 z-40 mt-1.5 min-w-[16.5rem]"
-              data-canvas-interactive="true"
-            >
+          <DetailsMenu
+            detailsRef={statusDetailsRef}
+            className="relative"
+            trigger={
+              <>
+                <SaveBadgeIcon state={saveStatus.state} />
+                <span className="max-w-[13rem] truncate">{saveStatusText}</span>
+                {!isAIEnabled ? (
+                  <span
+                    data-testid="ai-disabled-badge"
+                    title="AI is off for MVP"
+                    aria-label="AI is off for MVP"
+                    className="ml-1 inline-flex items-center gap-1 rounded-full border border-divider/45 bg-surface-panel/70 px-2 py-0.5 text-[10px] font-semibold text-text-muted"
+                  >
+                    <Bot className="h-3 w-3" aria-hidden="true" />
+                    <span className="sr-only">AI Off</span>
+                  </span>
+                ) : null}
+              </>
+            }
+            triggerProps={{
+              'data-testid': 'backup-status-indicator',
+              'data-last-saved-at': recoveryLastSavedAt || '',
+              className: `status-pill ${saveStatusToneClasses}`
+            }}
+            menuId="status-pill-menu"
+            menuClassName="status-pill-menu absolute left-0 z-40 mt-1.5 min-w-[16.5rem]"
+          >
               <div className="menu-section-label">System</div>
               <div className="px-2 py-1">
                 <div className="text-[11px] font-semibold text-text-primary">{saveStatusText}</div>
@@ -295,8 +266,7 @@ const TopBar: React.FC<TopBarProps> = ({
                   Retry Save
                 </button>
               ) : null}
-            </div>
-          </details>
+          </DetailsMenu>
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
@@ -343,19 +313,18 @@ const TopBar: React.FC<TopBarProps> = ({
             </button>
           </div>
 
-          <details ref={viewDetailsRef} data-testid="toolbar-view-details" className="relative">
-            <summary
-              data-testid="toolbar-view-trigger"
-              className="menu-trigger list-none cursor-pointer"
-              aria-label="View settings"
-            >
-              <Settings2 className="h-3.5 w-3.5" />
-            </summary>
-            <div
-              data-testid="toolbar-view-menu"
-              className="menu-panel absolute right-0 z-40 mt-1.5 min-w-[14rem]"
-              data-canvas-interactive="true"
-            >
+          <DetailsMenu
+            detailsRef={viewDetailsRef}
+            className="relative"
+            trigger={<Settings2 className="h-3.5 w-3.5" />}
+            triggerProps={{
+              'data-testid': 'toolbar-view-trigger',
+              className: 'menu-trigger',
+              'aria-label': 'View settings'
+            }}
+            menuId="toolbar-view-menu"
+            menuClassName="menu-panel absolute right-0 z-40 mt-1.5 min-w-[14rem]"
+          >
               <div className="menu-section-label">Canvas</div>
               <button
                 type="button"
@@ -449,8 +418,7 @@ const TopBar: React.FC<TopBarProps> = ({
                 <Crosshair className="h-3.5 w-3.5" />
                 Center diagram
               </button>
-            </div>
-          </details>
+          </DetailsMenu>
 
           <button
             type="button"

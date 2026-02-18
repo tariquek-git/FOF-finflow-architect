@@ -9,6 +9,7 @@ import {
   Import,
   RotateCcw
 } from 'lucide-react';
+import { DetailsMenu } from '../ui/Menu';
 
 type RecentWorkspaceItem = {
   workspaceId: string;
@@ -47,41 +48,17 @@ const FunctionToolbar: React.FC<FunctionToolbarProps> = ({
   onOpenWorkspace,
   onInsertStarterTemplate
 }) => {
-  const menuRef = React.useRef<HTMLDetailsElement | null>(null);
   const RECENT_WORKSPACES_LIMIT = 4;
   const visibleRecentWorkspaces = recentWorkspaces.slice(0, RECENT_WORKSPACES_LIMIT);
   const hiddenRecentCount = Math.max(0, recentWorkspaces.length - visibleRecentWorkspaces.length);
 
+  const menuRef = React.useRef<HTMLDetailsElement | null>(null);
+
   const closeMenu = React.useCallback(() => {
-    if (menuRef.current) {
+    if (menuRef.current?.open) {
       menuRef.current.open = false;
     }
   }, []);
-
-  React.useEffect(() => {
-    const onWindowPointerDownCapture = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (!menuRef.current?.open) return;
-      if (!menuRef.current.contains(target)) {
-        closeMenu();
-      }
-    };
-
-    const onWindowKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (!menuRef.current?.open) return;
-      event.preventDefault();
-      closeMenu();
-    };
-
-    window.addEventListener('pointerdown', onWindowPointerDownCapture, true);
-    window.addEventListener('keydown', onWindowKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', onWindowPointerDownCapture, true);
-      window.removeEventListener('keydown', onWindowKeyDown);
-    };
-  }, [closeMenu]);
 
   const runMenuAction = React.useCallback(
     (callback: () => void) => {
@@ -104,20 +81,19 @@ const FunctionToolbar: React.FC<FunctionToolbarProps> = ({
 
   return (
     <div data-testid="primary-actions-strip" className="flex items-center gap-2">
-      <details ref={menuRef} data-testid="toolbar-file-details" className="relative">
-        <summary
-          data-testid="toolbar-file-trigger"
-          className="menu-trigger list-none cursor-pointer"
-          title="Export and file actions"
-          aria-label="Export and file actions"
-        >
-          <Download className="h-3.5 w-3.5" />
-        </summary>
-        <div
-          data-testid="toolbar-file-menu"
-          className="menu-panel absolute right-0 z-40 mt-1.5 min-w-[14.5rem]"
-          data-canvas-interactive="true"
-        >
+      <DetailsMenu
+        detailsRef={menuRef}
+        className="relative"
+        trigger={<Download className="h-3.5 w-3.5" />}
+        triggerProps={{
+          'data-testid': 'toolbar-file-trigger',
+          className: 'menu-trigger',
+          title: 'Export and file actions',
+          'aria-label': 'Export and file actions'
+        }}
+        menuId="toolbar-file-menu"
+        menuClassName="menu-panel absolute right-0 z-40 mt-1.5 min-w-[14.5rem]"
+      >
           <div className="menu-section-label">Export</div>
           <button
             type="button"
@@ -254,8 +230,7 @@ const FunctionToolbar: React.FC<FunctionToolbarProps> = ({
             <ExternalLink className="h-3.5 w-3.5" />
             Feedback
           </a>
-        </div>
-      </details>
+      </DetailsMenu>
     </div>
   );
 };

@@ -6,6 +6,116 @@ type Item =
   | { type: 'sep' }
   | { type: 'title'; label: string };
 
+type DetailsMenuProps = {
+  detailsRef?: React.RefObject<HTMLDetailsElement | null>;
+  className?: string;
+  trigger: React.ReactNode;
+  triggerProps?: React.ComponentPropsWithoutRef<'summary'>;
+  menuId: string;
+  menuTestId?: string;
+  menuClassName?: string;
+  children: React.ReactNode;
+  closeOnOutsidePointerDown?: boolean;
+  closeOnEscape?: boolean;
+};
+
+// Shared <details> menu primitive for TopBar/File/View/Zoom and similar popovers.
+// Centralizes outside-click + Escape dismissal so we don't re-implement it per menu.
+export function DetailsMenu({
+  detailsRef,
+  className,
+  trigger,
+  triggerProps,
+  menuId,
+  menuTestId,
+  menuClassName,
+  children,
+  closeOnOutsidePointerDown = true,
+  closeOnEscape = true
+}: DetailsMenuProps) {
+  const internalRef = useRef<HTMLDetailsElement | null>(null);
+  const mergedRef = detailsRef ?? internalRef;
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const el = mergedRef.current;
+    if (!el) return;
+    setOpen(el.open);
+  }, [mergedRef]);
+
+  useEffect(() => {
+    const el = mergedRef.current;
+    if (!el) return;
+
+    const onWindowPointerDownCapture = (event: PointerEvent) => {
+      if (!closeOnOutsidePointerDown) return;
+      if (!el.open) return;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (!el.contains(target)) {
+        el.open = false;
+        setOpen(false);
+      }
+    };
+
+    const onWindowKeyDown = (event: KeyboardEvent) => {
+      if (!closeOnEscape) return;
+      if (event.key !== 'Escape') return;
+      if (!el.open) return;
+      // Keep Escape scoped to the menu first; don't let it clear selection.
+      event.preventDefault();
+      el.open = false;
+      setOpen(false);
+    };
+
+    window.addEventListener('pointerdown', onWindowPointerDownCapture, true);
+    window.addEventListener('keydown', onWindowKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onWindowPointerDownCapture, true);
+      window.removeEventListener('keydown', onWindowKeyDown);
+    };
+  }, [closeOnEscape, closeOnOutsidePointerDown, mergedRef]);
+
+  return (
+    <details
+      ref={(node) => {
+        internalRef.current = node;
+        // Preserve external ref support for callers who already rely on it.
+        if (detailsRef) {
+          (detailsRef as unknown as { current: HTMLDetailsElement | null }).current = node;
+        }
+      }}
+      className={cn('relative', className)}
+      onToggle={(event) => {
+        const nextOpen = (event.currentTarget as HTMLDetailsElement).open;
+        setOpen(nextOpen);
+      }}
+    >
+      <summary
+        {...triggerProps}
+        className={cn('list-none cursor-pointer', triggerProps?.className)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+      >
+        {trigger}
+      </summary>
+      <div
+        id={menuId}
+        role="menu"
+        data-testid={menuTestId ?? menuId}
+        className={cn(menuClassName)}
+        data-canvas-interactive="true"
+        onPointerDownCapture={(event) => event.stopPropagation()}
+        onMouseDownCapture={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {children}
+      </div>
+    </details>
+  );
+}
+
 export function Menu(props: {
   trigger: React.ReactNode;
   items: Item[];

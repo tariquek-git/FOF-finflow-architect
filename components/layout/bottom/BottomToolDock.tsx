@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   ChevronDown,
   Hand,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import InsertConnectorButton from '../InsertConnectorButton';
 import type { ToolMode } from '../../../types';
+import { DetailsMenu } from '../../ui/Menu';
 
 type BottomToolDockProps = {
   activeTool: ToolMode;
@@ -58,32 +59,6 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
     if (details && details.open) {
       details.open = false;
     }
-  }, []);
-
-  useEffect(() => {
-    const details = zoomDetailsRef.current;
-    if (!details) return;
-
-    // <details> stays open by default; close it on outside click + Escape so it never blocks canvas interactions.
-    const onWindowPointerDown = (event: PointerEvent) => {
-      if (!details.open) return;
-      const target = event.target as Node | null;
-      if (target && details.contains(target)) return;
-      details.open = false;
-    };
-
-    const onWindowKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (!details.open) return;
-      details.open = false;
-    };
-
-    window.addEventListener('pointerdown', onWindowPointerDown, true);
-    window.addEventListener('keydown', onWindowKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', onWindowPointerDown, true);
-      window.removeEventListener('keydown', onWindowKeyDown);
-    };
   }, []);
 
   return (
@@ -159,17 +134,24 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
         <Minus className="h-4 w-4" />
       </button>
 
-      <details ref={zoomDetailsRef} className="ff-bottom-zoom-details">
-        <summary
-          data-testid="bottom-zoom-menu-trigger"
-          className="ff-bottom-btn ff-bottom-zoom-trigger list-none"
-          aria-label="Zoom level"
-          title="Zoom level"
-        >
-          <span className="ff-bottom-zoom-text">{zoomPercent}%</span>
-          <ChevronDown className="h-3.5 w-3.5" />
-        </summary>
-        <div data-testid="bottom-zoom-menu" className="menu-panel ff-bottom-zoom-menu">
+      <DetailsMenu
+        detailsRef={zoomDetailsRef as unknown as React.RefObject<HTMLDetailsElement | null>}
+        className="ff-bottom-zoom-details"
+        trigger={
+          <>
+            <span className="ff-bottom-zoom-text">{zoomPercent}%</span>
+            <ChevronDown className="h-3.5 w-3.5" />
+          </>
+        }
+        triggerProps={{
+          'data-testid': 'bottom-zoom-menu-trigger',
+          className: 'ff-bottom-btn ff-bottom-zoom-trigger',
+          'aria-label': 'Zoom level',
+          title: 'Zoom level'
+        }}
+        menuId="bottom-zoom-menu"
+        menuClassName="menu-panel ff-bottom-zoom-menu"
+      >
           <div className="menu-section-label">Zoom</div>
           {!showInlineZoomButtons ? (
             <>
@@ -231,8 +213,7 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
               <span>{percent}%</span>
             </button>
           ))}
-        </div>
-      </details>
+      </DetailsMenu>
 
       <button
         type="button"
