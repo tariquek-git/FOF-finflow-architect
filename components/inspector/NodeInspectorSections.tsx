@@ -176,7 +176,7 @@ const NodeInspectorSections: React.FC<NodeInspectorSectionsProps> = ({
   onNotesBlur
 }) => {
   const [identityOpen, setIdentityOpen] = useState(true);
-  const [displayOpen, setDisplayOpen] = useState(true);
+  const [displayOpen, setDisplayOpen] = useState(false);
   const [displayAdvancedOpen, setDisplayAdvancedOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [behaviorOpen, setBehaviorOpen] = useState(true);
