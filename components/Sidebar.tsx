@@ -375,28 +375,27 @@ const Sidebar = React.memo<SidebarProps>(({
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="space-y-2 border-b border-divider/35 px-3 py-2">
             <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                aria-pressed={isExpanded}
-                onClick={onToggleExpanded}
-                className="ui-icon-button h-8 w-8"
-                title="Collapse library"
-                aria-label="Collapse library"
-              >
-                <ChevronsLeftRightEllipsis className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-accent" />
                 <span className="ui-section-title">Node Library</span>
               </div>
-              <span
-                className="shrink-0 rounded-full border border-divider/50 px-2 py-0.5 text-[10px] font-medium text-text-muted"
-              >
-                {totalVisibleBlocks}/{TOTAL_LIBRARY_COUNT}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="shrink-0 rounded-full border border-divider/50 px-2 py-0.5 text-[10px] font-medium text-text-muted"
+                >
+                  {totalVisibleBlocks}/{TOTAL_LIBRARY_COUNT}
+                </span>
+                <button
+                  type="button"
+                  aria-pressed={isExpanded}
+                  onClick={onToggleExpanded}
+                  className="ui-icon-button h-8 w-8"
+                  title="Collapse library"
+                  aria-label="Collapse library"
+                >
+                  <ChevronsLeftRightEllipsis className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div className="relative">
@@ -446,7 +445,7 @@ const Sidebar = React.memo<SidebarProps>(({
               >
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-text-muted">
                   <Sparkles className="h-3.5 w-3.5 text-accent/80" aria-hidden="true" />
-                  Quick Start checklist
+                  Quick Start
                 </span>
                 <button
                   data-testid="quickstart-dismiss"
@@ -462,7 +461,6 @@ const Sidebar = React.memo<SidebarProps>(({
               <>
                 <div className="flex items-center justify-between gap-2">
                   <span className="ui-section-title">Favorites</span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">Max 6</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1">
                   {favorites.length === 0 ? (
@@ -487,7 +485,6 @@ const Sidebar = React.memo<SidebarProps>(({
 
                 <div className="flex items-center justify-between gap-2">
                   <span className="ui-section-title">Recent</span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">Arrow keys + Enter</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1">
                   {recent.length === 0 ? (
@@ -511,7 +508,7 @@ const Sidebar = React.memo<SidebarProps>(({
                 </div>
 
                 <p className="text-[10px] text-slate-500/85 dark:text-slate-400/90">
-                  Click, hover + <span className="mono">+</span>, press <span className="mono">Enter</span>, or drag to canvas.
+                  Tip: use Arrow keys + Enter in search, or drag tiles to canvas.
                 </p>
               </>
             ) : null}

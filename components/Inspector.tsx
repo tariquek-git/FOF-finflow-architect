@@ -986,7 +986,12 @@ const Inspector: React.FC<InspectorProps> = ({
   };
 
   return (
-    <div className="flex h-full flex-col bg-surface-panel/85">
+    <div
+      className="flex h-full flex-col bg-surface-panel/85"
+      data-canvas-interactive="true"
+      onPointerDownCapture={(event) => event.stopPropagation()}
+      onMouseDownCapture={(event) => event.stopPropagation()}
+    >
       <div
         className="sticky top-0 z-10 border-b border-divider/65 bg-surface-panel/88 px-3 py-2 backdrop-blur"
       >
