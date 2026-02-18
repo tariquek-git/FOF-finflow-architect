@@ -135,6 +135,7 @@ const FunctionToolbar: React.FC<FunctionToolbarProps> = ({
             <FileText className="h-3.5 w-3.5" />
             Export PDF
           </button>
+          <div className="menu-divider-soft" />
           <div className="menu-section-label">Workspace</div>
           <button
             type="button"
@@ -181,7 +182,6 @@ const FunctionToolbar: React.FC<FunctionToolbarProps> = ({
             </>
           ) : null}
           <div className="menu-divider-soft" />
-          <div className="menu-section-label">More Actions</div>
           <button
             type="button"
             data-testid="toolbar-import-json"

@@ -386,7 +386,7 @@ const TopBar: React.FC<TopBarProps> = ({
                 type="button"
                 data-testid="toolbar-view-zoom-out"
                 onClick={() => runMenuAction(onZoomOut, viewDetailsRef)}
-                className="menu-item justify-between"
+                className="menu-item"
               >
                 <span className="inline-flex items-center gap-1.5">
                   <ZoomOut className="h-3.5 w-3.5" /> Zoom out
@@ -396,7 +396,7 @@ const TopBar: React.FC<TopBarProps> = ({
                 type="button"
                 data-testid="toolbar-view-zoom-in"
                 onClick={() => runMenuAction(onZoomIn, viewDetailsRef)}
-                className="menu-item justify-between"
+                className="menu-item"
               >
                 <span className="inline-flex items-center gap-1.5">
                   <ZoomIn className="h-3.5 w-3.5" /> Zoom in
