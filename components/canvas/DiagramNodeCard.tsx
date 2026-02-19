@@ -334,6 +334,23 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
   }
 
   const { width, height } = getNodeDimensions(node);
+  const minDimension = Math.min(width, height);
+  const textScale = clamp(Math.min(width / 180, height / 64), 0.76, 1.18);
+  const titleFontSize = clamp(12 * textScale, 9.5, 14);
+  const compactTitleFontSize = clamp(11 * textScale, 9, 13);
+  const chipFontSize = clamp(8 * textScale, 7, 9.5);
+  const iconSlotSize = clamp(28 * textScale, 20, 34);
+  const iconScale = clamp(textScale, 0.82, 1.15);
+  const isTightShape =
+    shape === NodeShape.DIAMOND || shape === NodeShape.CIRCLE || shape === NodeShape.SQUARE;
+  const isDiamondShape = shape === NodeShape.DIAMOND;
+  const useCenteredLayout = !compactMode && isTightShape;
+  const maxVisibleMetaItems = isTightShape ? (minDimension >= 150 ? 2 : 1) : 3;
+  const canShowMetaForShape = isDiamondShape ? false : !isTightShape || minDimension >= 118;
+  const canShowStatusForShape = isDiamondShape ? false : !isTightShape || minDimension >= 130;
+  const centeredTitleFontSize = isDiamondShape
+    ? clamp(titleFontSize * 0.92, 8.8, 12.5)
+    : titleFontSize;
   const iconNode =
     node.type === EntityType.END_POINT && node.endPointType
       ? ENDPOINT_ICONS[node.endPointType as EndPointType]
@@ -380,40 +397,107 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
     >
       {compactMode ? (
         <div className="flex min-h-[40px] items-center gap-1.5 px-2 py-1.5">
-          <div className="flex h-5 w-5 items-center justify-center rounded-md border border-slate-200/65 bg-white/70 dark:border-slate-700/70 dark:bg-slate-900/45">
-            <span className="scale-90">{iconNode}</span>
+          <div
+            className="flex items-center justify-center rounded-md border border-slate-200/65 bg-white/70 dark:border-slate-700/70 dark:bg-slate-900/45"
+            style={{ width: `${clamp(iconSlotSize * 0.74, 16, 24)}px`, height: `${clamp(iconSlotSize * 0.74, 16, 24)}px` }}
+          >
+            <span style={{ transform: `scale(${clamp(iconScale * 0.92, 0.8, 1.08)})` }}>{iconNode}</span>
           </div>
-          <span className="truncate text-[11px] font-medium text-slate-700 dark:text-slate-200">{compactTitle}</span>
+          <span
+            className="truncate font-medium text-slate-700 dark:text-slate-200"
+            style={{ fontSize: `${compactTitleFontSize}px`, lineHeight: 1.25 }}
+          >
+            {compactTitle}
+          </span>
+        </div>
+      ) : useCenteredLayout ? (
+        <div className="flex h-full flex-col items-center justify-center gap-1.5 px-3 py-3 text-center">
+          {!isDiamondShape && minDimension >= 126 ? (
+            <div
+              className="flex shrink-0 items-center justify-center rounded-lg border border-slate-200/60 bg-white/70 dark:border-slate-700/65 dark:bg-slate-900/45"
+              style={{ width: `${iconSlotSize}px`, height: `${iconSlotSize}px` }}
+            >
+              <span style={{ transform: `scale(${iconScale})` }}>{iconNode}</span>
+            </div>
+          ) : null}
+
+          <div
+            className={`font-semibold tracking-[0.02em] text-slate-800 dark:text-slate-100 ${
+              isDiamondShape ? 'line-clamp-2 max-w-[62%]' : 'line-clamp-3 max-w-[78%]'
+            }`}
+            style={{ fontSize: `${centeredTitleFontSize}px`, lineHeight: 1.18 }}
+          >
+            {headerTitle}
+          </div>
+
+          {shouldShowTypeBadge && !isDiamondShape && minDimension >= 142 ? (
+            <div
+              className="inline-flex max-w-[74%] truncate rounded-full border border-slate-200/55 bg-white/65 px-1.5 py-0.5 font-semibold uppercase tracking-[0.06em] text-slate-500 dark:border-slate-700/60 dark:bg-slate-950/45 dark:text-slate-300"
+              style={{ fontSize: `${chipFontSize}px` }}
+            >
+              {semanticBadge}
+            </div>
+          ) : null}
+
+          {showBodyMeta && displayStyle !== 'hidden' && canShowMetaForShape ? (
+            <div data-testid={`node-meta-${node.id}`} className="mt-0.5 flex max-w-[82%] flex-wrap justify-center gap-1">
+              {(chipCandidates.slice(0, maxVisibleMetaItems).length > 0
+                ? chipCandidates.slice(0, maxVisibleMetaItems)
+                : attributeChips.slice(0, maxVisibleMetaItems)
+              ).map((chip) => (
+                <span
+                  key={`${node.id}-${chip}`}
+                  className="rounded-full border border-slate-200/55 bg-white/65 px-1.5 py-0.5 font-medium uppercase tracking-[0.05em] text-slate-600 dark:border-slate-700/60 dark:bg-slate-950/45 dark:text-slate-300"
+                  style={{ fontSize: `${chipFontSize}px` }}
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : (
         <>
           <div className="flex items-start gap-2 px-3 pb-1.5 pt-2.5">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200/60 bg-white/70 dark:border-slate-700/65 dark:bg-slate-900/45">
-              {iconNode}
+            <div
+              className="flex shrink-0 items-center justify-center rounded-lg border border-slate-200/60 bg-white/70 dark:border-slate-700/65 dark:bg-slate-900/45"
+              style={{ width: `${iconSlotSize}px`, height: `${iconSlotSize}px` }}
+            >
+              <span style={{ transform: `scale(${iconScale})` }}>{iconNode}</span>
             </div>
             <div className="min-w-0 flex flex-1 items-start justify-between gap-2">
-              <div className="truncate pt-0.5 text-[12px] font-semibold text-slate-800 dark:text-slate-100">
+              <div
+                className="truncate pt-0.5 font-semibold text-slate-800 dark:text-slate-100"
+                style={{ fontSize: `${titleFontSize}px`, lineHeight: 1.2 }}
+              >
                 {headerTitle}
               </div>
               {shouldShowTypeBadge ? (
-                <div className="inline-flex rounded-full border border-slate-200/55 bg-white/65 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-500 dark:border-slate-700/60 dark:bg-slate-950/45 dark:text-slate-300">
+                <div
+                  className="inline-flex rounded-full border border-slate-200/55 bg-white/65 px-1.5 py-0.5 font-semibold uppercase tracking-[0.06em] text-slate-500 dark:border-slate-700/60 dark:bg-slate-950/45 dark:text-slate-300"
+                  style={{ fontSize: `${chipFontSize}px` }}
+                >
                   {semanticBadge}
                 </div>
               ) : null}
             </div>
           </div>
 
-          {showBodyMeta && displayStyle !== 'hidden' ? (
+          {showBodyMeta && displayStyle !== 'hidden' && canShowMetaForShape ? (
             <div
               data-testid={`node-meta-${node.id}`}
               className="px-2.5 pb-1.5 pt-0.5"
             >
               {displayStyle === 'compact' ? (
                 <div className="space-y-0.5">
-                  {(visibleItems.length > 0 ? visibleItems : attributeChips.slice(0, 3)).map((item, idx) => (
+                  {(visibleItems.length > 0
+                    ? visibleItems.slice(0, maxVisibleMetaItems)
+                    : attributeChips.slice(0, maxVisibleMetaItems)
+                  ).map((item, idx) => (
                     <div
                       key={`${node.id}-compact-${idx}-${item}`}
-                      className="truncate text-[9px] text-slate-600 dark:text-slate-300"
+                      className="truncate text-slate-600 dark:text-slate-300"
+                      style={{ fontSize: `${clamp(chipFontSize + 0.8, 8, 10)}px`, lineHeight: 1.2 }}
                     >
                       {item}
                     </div>
@@ -426,10 +510,14 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-1">
-                  {(visibleItems.length > 0 ? visibleItems : attributeChips.slice(0, 3)).map((chip) => (
+                  {(visibleItems.length > 0
+                    ? visibleItems.slice(0, maxVisibleMetaItems)
+                    : attributeChips.slice(0, maxVisibleMetaItems)
+                  ).map((chip) => (
                     <span
                       key={`${node.id}-${chip}`}
-                      className="rounded-full border border-slate-200/55 bg-white/65 px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-[0.05em] text-slate-600 dark:border-slate-700/60 dark:bg-slate-950/45 dark:text-slate-300"
+                      className="rounded-full border border-slate-200/55 bg-white/65 px-1.5 py-0.5 font-medium uppercase tracking-[0.05em] text-slate-600 dark:border-slate-700/60 dark:bg-slate-950/45 dark:text-slate-300"
+                      style={{ fontSize: `${chipFontSize}px` }}
                     >
                       {chip}
                     </span>
@@ -449,7 +537,7 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
             </div>
           ) : null}
 
-          {showStatusFooter ? (
+          {showStatusFooter && canShowStatusForShape ? (
             <div
               data-testid={`node-status-${node.id}`}
               className="flex items-center gap-1.5 px-3 pb-1.5 pt-0.5"
