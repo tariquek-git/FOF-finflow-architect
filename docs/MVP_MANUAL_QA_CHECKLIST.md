@@ -79,3 +79,22 @@ Expected: Selection clears; Inspector shows "Nothing selected".
 1. Import a large diagram JSON (200+ nodes).
 Expected: Pan/zoom/drag remain usable; no obvious 1-2s UI freezes; no console errors.
 
+## Latest Execution Evidence
+
+- Date (UTC): `2026-02-19T05:50:26Z`
+- URL used: `http://127.0.0.1:5181/?fresh=1`
+- Results summary:
+  - [x] Core flow validated (insert starter -> edit/connect -> export -> reset -> import)
+  - [x] Notes isolation and session reload persistence validated
+  - [x] Close/reopen clears session validated (`closeReopenBlank: true`)
+  - [x] Edge reconnect + selection reliability validated via repeat soaks
+  - [x] Mobile overflow and click-off behavior validated
+  - [x] Large graph interaction sanity validated (`scripts/qa-focused.mjs`)
+- Supporting runs:
+  1. `PW_REUSE_SERVER=1 PW_PORT=5181 npm run test:smoke`
+  2. `PW_REUSE_SERVER=1 PW_PORT=5181 npm run test:mvp`
+  3. `PW_REUSE_SERVER=1 PW_PORT=5181 npx playwright test e2e/mouse-interactions.spec.ts --repeat-each=20 --workers=1`
+  4. `PW_REUSE_SERVER=1 PW_PORT=5181 npx playwright test e2e/edge-reconnect.spec.ts --repeat-each=10 --workers=1`
+  5. `PW_REUSE_SERVER=1 PW_PORT=5181 npx playwright test e2e/mvp-interactions-minimal.spec.ts --repeat-each=20 --workers=1`
+  6. `QA_BASE_URL='http://127.0.0.1:5181/?fresh=1' node scripts/qa-focused.mjs`
+  7. `PILOT_BASE_URL='http://127.0.0.1:5181/?fresh=1' node scripts/pilot-human.mjs`

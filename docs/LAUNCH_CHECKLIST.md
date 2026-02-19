@@ -76,7 +76,7 @@ Pass criteria:
 ## Latest Evidence (update per run)
 - Date: `2026-02-19` (local run window, refreshed)
 - Branch: `codex/finflow-mvp-main`
-- Commit: `dde236e`
+- Commit: `0b61c5d`
 - Gate results:
   - doctor: `pass`
   - build: `pass`
@@ -87,6 +87,6 @@ Pass criteria:
   - mouse interactions: `pass` (`80/80`)
   - edge reconnect: `pass` (`20/20`)
   - minimal interactions: `pass` (`20/20`)
-- Freeze tag: `v0.3.0-rc3`
-- Pilot artifacts: `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T05-22-43-953Z`
+- Freeze tag: `v0.3.0-rc4`
+- Pilot artifacts: `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T05-50-07-905Z`
 - Performance artifacts: `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-19T05-22-26-112Z`

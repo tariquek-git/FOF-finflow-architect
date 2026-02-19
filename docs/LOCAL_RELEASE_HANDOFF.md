@@ -34,13 +34,13 @@ All commands passed with exit code `0`:
 1. Focused QA/performance:
    - `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-19T05-22-26-112Z`
 2. Pilot run:
-   - `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T05-22-43-953Z`
+   - `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T05-50-07-905Z`
 3. Shape text-fit evidence:
    - `/Users/tarique/Documents/banking-diagram-mvp/docs/ui-baseline/after-modern/node-text-fit-report.json`
 
 ### Freeze Record
-- Freeze commit: `dde236e`
-- Freeze tag: `v0.3.0-rc3`
+- Freeze commit: `0b61c5d`
+- Freeze tag: `v0.3.0-rc4`
 
 ## Update (2026-02-19: Beta Readiness Hardening Pass)
 - Branch under work: `codex/finflow-mvp-main`
