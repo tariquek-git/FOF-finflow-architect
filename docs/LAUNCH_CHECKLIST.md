@@ -59,34 +59,35 @@ Pass criteria:
 - [x] Freeze beta branch/tag and record commit in `docs/LOCAL_RELEASE_HANDOFF.md`
 
 ## Vercel Deploy Readiness
-- [ ] Production branch is `main`
-- [ ] Env set in Preview + Production:
-  - [ ] `VITE_ENABLE_AI=false`
-  - [ ] `VITE_ENABLE_CLOUD_SYNC=false`
-  - [ ] `VITE_FEEDBACK_URL=<mailto or form>`
-- [ ] Production smoke completed on deployed URL:
-  - [ ] blank-first load
-  - [ ] insert starter template
-  - [ ] connect/reconnect
-  - [ ] export JSON
-  - [ ] reset blank
-  - [ ] import restore
-  - [ ] no console errors
+- [x] Production branch is `main`
+- [x] Env set in Preview + Production:
+  - [x] `VITE_ENABLE_AI=false`
+  - [x] `VITE_ENABLE_CLOUD_SYNC=false`
+  - [x] `VITE_FEEDBACK_URL=<mailto or form>`
+- [x] Production smoke completed on deployed URL:
+  - [x] blank-first load
+  - [x] insert starter template
+  - [x] connect/reconnect
+  - [x] export JSON
+  - [x] reset blank
+  - [x] import restore
+  - [x] no console errors
+- [ ] Preview share links are open to external testers (current `*.vercel.app` preview aliases return `401`)
 
 ## Latest Evidence (update per run)
 - Date: `2026-02-19` (local run window, refreshed)
 - Branch: `codex/finflow-mvp-main`
-- Commit: `0b61c5d`
+- Commit: `5506835`
 - Gate results:
-  - doctor: `pass`
   - build: `pass`
   - smoke: `pass` (`8/8`)
   - mvp: `pass` (`1/1`)
-  - qa: `pass` (`87 passed / 4 skipped / 0 failed`)
+  - qa: `pass` (`88 passed / 4 skipped / 0 failed`)
 - Soak results:
   - mouse interactions: `pass` (`80/80`)
-  - edge reconnect: `pass` (`20/20`)
-  - minimal interactions: `pass` (`20/20`)
-- Freeze tag: `v0.3.0-rc4`
+  - edge reconnect: `pass` (`40/40`)
+  - minimal interactions: `pass` (`20/20`) (previous lock run)
+- Hosted smoke (production URL): `pass` (`https://fof-finflow-architect.vercel.app`)
+- Freeze tag: `v0.3.0-public-rc2`
 - Pilot artifacts: `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T05-50-07-905Z`
 - Performance artifacts: `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-19T05-22-26-112Z`

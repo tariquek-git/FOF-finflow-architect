@@ -1,5 +1,57 @@
 # Local Release Handoff (v0.2.4)
 
+## Update (2026-02-19: MVP Launch Path Lock + Hosted Smoke)
+- Branch under work: `codex/finflow-mvp-main`
+- Verification timestamps:
+  - UTC: `2026-02-19T20:49:09Z`
+  - EST: `2026-02-19 15:49:09 EST`
+
+### Release Engineering State
+1. Hosted branch topology is corrected:
+   - default `HEAD` -> `main`
+   - `main` -> `5506835`
+   - `main-legacy-2026-02-17` remains preserved (`5443c24`)
+2. App branch remains `codex/finflow-mvp-main` locally; it is ahead of `github/codex/finflow-mvp-main` by one commit because mainline promotion is on `github/main`.
+
+### Gate Evidence (2026-02-19 refresh)
+All commands passed with exit code `0`:
+1. `npm run build`
+2. `PW_PORT=4301 npm run test:smoke` (`8/8`)
+3. `PW_PORT=4302 npm run test:mvp` (`1/1`)
+4. `PW_PORT=4305 npm run test:qa` (`88 passed / 4 skipped / 0 failed`)
+5. `PW_PORT=4303 npx playwright test e2e/mouse-interactions.spec.ts --repeat-each=20 --workers=1` (`80/80`)
+6. `PW_PORT=4304 npx playwright test e2e/edge-reconnect.spec.ts --repeat-each=20 --workers=1` (`40/40`)
+
+### Hosted Readiness Evidence
+1. Production URL health:
+   - `https://fof-finflow-architect.vercel.app` -> `HTTP 200`
+2. Preview accessibility status:
+   - latest preview alias (`https://fof-finflow-architect-keu43hfcq-tariquek-4483s-projects.vercel.app`) -> `HTTP 401`
+   - blocker remains: preview access policy still protected for external testers.
+3. Vercel env vars present in Preview + Production:
+   - `VITE_ENABLE_AI`
+   - `VITE_ENABLE_CLOUD_SYNC`
+   - `VITE_FEEDBACK_URL`
+
+### Hosted Smoke (production URL)
+Run against `https://fof-finflow-architect.vercel.app` passed:
+1. Blank-first load (`0 nodes / 0 edges`)
+2. Insert starter template
+3. Connect edge (+1 edge)
+4. Reconnect edge (`starter-edge-1` target updated to `starter-network`)
+5. Export JSON
+6. Reset to blank
+7. Import restore (including node notes)
+8. No browser console errors observed
+
+### Release Pointer
+- Current deploy-aligned commit: `5506835`
+- Public RC tag: `v0.3.0-public-rc2`
+- Remaining blockers before `v0.3.0`:
+  1. Enable branch protection on hosted `main` requiring `qa`
+  2. Open preview accessibility for pilot users (or whitelist pilot list)
+  3. Run 3-5 real-user pilot sessions and log outcomes
+
 ## Update (2026-02-19: Stability Soaks + Shape Text Fit Freeze)
 - Branch under work: `codex/finflow-mvp-main`
 - Scope: reliability soaks, session-only contract recheck, constrained-shape text-fit hardening, beta checklist refresh.
