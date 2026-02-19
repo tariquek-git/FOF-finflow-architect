@@ -44,7 +44,7 @@ All commands passed with exit code `0`:
    - `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T03-57-21-798Z`
 
 ### Beta Freeze Record
-- Current commit for beta-prep doc/update pass: `pending this commit hash`
+- Current commit for beta-prep doc/update pass: `28debfa`
 - Hosted freeze/tag remains pending until hosted branch protection + RC tag workflow execution is performed.
 
 ## Update (2026-02-14 Stabilization)

@@ -76,7 +76,7 @@ Pass criteria:
 ## Latest Evidence (update per run)
 - Date: `2026-02-19` (local run window)
 - Branch: `codex/finflow-mvp-main`
-- Commit: `pending this docs/update commit`
+- Commit: `28debfa`
 - Gate results:
   - doctor: `pass`
   - build: `pass`
