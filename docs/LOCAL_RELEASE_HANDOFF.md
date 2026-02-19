@@ -1,5 +1,52 @@
 # Local Release Handoff (v0.2.4)
 
+## Update (2026-02-19: Beta Readiness Hardening Pass)
+- Branch under work: `codex/finflow-mvp-main`
+- Scope: beta gate execution, soak verification, security cleanup, docs/CI alignment.
+
+### Changes Applied
+1. Security gate cleanup:
+   - Added `overrides` to force patched transitive dependency chain (`rimraf`/`minimatch`).
+   - `npm audit --omit=dev --audit-level=high` now reports `0 high / 0 critical`.
+2. CI beta soak lock:
+   - Updated `/Users/tarique/Documents/banking-diagram-mvp/.github/workflows/qa.yml`.
+   - Added release-candidate tag trigger (`v*-public-rc*`).
+   - Added `beta_soak` job running:
+     - `npm run test:soak:mouse`
+     - `npm run test:soak:edge`
+     - `npm run test:soak:minimal`
+3. Docs consistency updates:
+   - `/Users/tarique/Documents/banking-diagram-mvp/README.md` now points to `http://127.0.0.1:5173` and lists soak scripts.
+   - `/Users/tarique/Documents/banking-diagram-mvp/docs/LOCAL_PILOT_RUNBOOK.md` updated for blank-first + reset-to-blank flow and `?fresh=1`.
+   - `/Users/tarique/Documents/banking-diagram-mvp/docs/LAUNCH_CHECKLIST.md` replaced stale historical pass counts with current beta criteria and fresh evidence fields.
+
+### Gate Evidence (2026-02-19)
+All commands passed with exit code `0`:
+1. `npm run doctor`
+2. `npm run build`
+3. `npm run test:smoke`
+4. `npm run test:mvp`
+5. `npm run test:qa` (`86 passed / 4 skipped / 0 failed`)
+6. `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/mouse-interactions.spec.ts --repeat-each=30 --workers=1` (`120/120`)
+7. `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/edge-reconnect.spec.ts --repeat-each=20 --workers=1` (`40/40`)
+8. `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/mvp-interactions-minimal.spec.ts --repeat-each=20 --workers=1` (`20/20`)
+9. `npm run test:a11y` (`4/4`)
+10. `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/smoke.spec.ts --workers=1` (`8/8`)
+11. `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/vpe-hand-tool.spec.ts --workers=1` (`2/2`)
+12. `QA_BASE_URL='http://127.0.0.1:5173/?fresh=1' node scripts/qa-focused.mjs`
+13. `PILOT_BASE_URL='http://127.0.0.1:5173/?fresh=1' node scripts/pilot-human.mjs`
+14. `npm audit --omit=dev --audit-level=high`
+
+### Artifacts
+1. Focused QA/performance:
+   - `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-19T03-57-10-396Z`
+2. Pilot run:
+   - `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T03-57-21-798Z`
+
+### Beta Freeze Record
+- Current commit for beta-prep doc/update pass: `pending this commit hash`
+- Hosted freeze/tag remains pending until hosted branch protection + RC tag workflow execution is performed.
+
 ## Update (2026-02-14 Stabilization)
 - Branch under stabilization work: `main`
 - Local run timestamp (UTC): `2026-02-14T21:13:37Z`

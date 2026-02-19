@@ -22,6 +22,9 @@
     "test:notes:isolation": "playwright test e2e/inspector-notes-isolation.spec.ts",
     "test:acceptance": "playwright test e2e/acceptance.spec.ts",
     "test:a11y": "playwright test e2e/a11y.spec.ts",
+    "test:soak:mouse": "playwright test e2e/mouse-interactions.spec.ts --repeat-each=30 --workers=1",
+    "test:soak:edge": "playwright test e2e/edge-reconnect.spec.ts --repeat-each=20 --workers=1",
+    "test:soak:minimal": "playwright test e2e/mvp-interactions-minimal.spec.ts --repeat-each=20 --workers=1",
     "test:qa": "playwright test",
     "test:smoke:headed": "playwright test --headed",
     "test:smoke:install": "playwright install chromium"
@@ -50,5 +53,9 @@
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
+  },
+  "overrides": {
+    "rimraf": "^6.1.3",
+    "minimatch": "^10.2.1"
   }
 }

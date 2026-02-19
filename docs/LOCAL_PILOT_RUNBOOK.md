@@ -5,20 +5,20 @@ Run a short local validation sprint with 3 to 5 users to verify first-session MV
 
 ## Pilot Scope
 - Flow under test: edit -> export JSON -> reset -> import JSON -> verify recovery.
-- Environment: local app (`npm run dev`, `http://127.0.0.1:3000`).
+- Environment: local app (`npm run dev`, `http://127.0.0.1:5173/?fresh=1` for clean sessions).
 - Data handling: anonymous user IDs only, no personal data.
 - Success focus: first-session completion only.
 
 ## Facilitator Setup
 1. Start app locally with `npm run dev`.
-2. Open a fresh browser profile or clear localStorage before each session.
+2. Open a fresh browser profile or use `?fresh=1` before each session.
 3. Have `docs/LOCAL_PILOT_SESSION_LOG.csv` open to log outcomes.
 4. Use a 15-minute max session timer.
 
 ## Participant Script
-1. Add or edit a node/connector in the starter diagram.
+1. Start on blank canvas and add/edit at least one node or connector.
 2. Export the diagram as JSON.
-3. Reset canvas to starter template.
+3. Reset canvas to blank.
 4. Import the exported JSON.
 5. Confirm restored state matches the pre-reset edit.
 

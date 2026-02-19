@@ -9,7 +9,8 @@ Canonical MVP scope and acceptance criteria live in `MVP_DEFINITION.md`.
 1. `npm install`
 2. `npm run doctor`
 3. `npm run dev`
-4. Open `http://127.0.0.1:3000`
+4. Open `http://127.0.0.1:5173`
+5. Optional clean session: open `http://127.0.0.1:5173/?fresh=1`
 
 Notes:
 - Public MVP ships with AI disabled by default (`VITE_ENABLE_AI=false`).
@@ -52,6 +53,12 @@ Accessibility checks:
 Full gate (all e2e suites):
 
 - `npm run test:qa`
+
+Beta reliability soaks:
+
+- `npm run test:soak:mouse`
+- `npm run test:soak:edge`
+- `npm run test:soak:minimal`
 
 ## Vercel Launch Defaults
 

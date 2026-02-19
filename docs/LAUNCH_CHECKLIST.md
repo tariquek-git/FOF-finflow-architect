@@ -1,95 +1,91 @@
-# Local MVP Launch Checklist (v0.2.4)
+# Public Beta Launch Checklist (Session-Only MVP)
 
-## Stabilization Sprint Evidence (2026-02-14)
-- [x] `npm run doctor` (passed)
-- [x] `npm run build` (passed)
-- [x] `PW_REUSE_SERVER=1 npm run test:smoke` (passed, 8/8)
-- [x] `PW_REUSE_SERVER=1 npm run test:mvp` (passed, 1/1)
-- [x] `PW_REUSE_SERVER=1 npm run test:mvp:onboarding` (passed, 1/1)
-- [x] `PW_REUSE_SERVER=1 npm run test:mvp:feedback` (passed, 6/6)
-- [x] `PW_REUSE_SERVER=1 npm run test:qa` (passed, 66/66)
-- [x] Stabilization target achieved: previously failing UI-contract specs are green.
-- [ ] Hosted launch steps pending (PR/branch protection/Vercel/tag promotion).
+## Scope Lock
+- [x] Public beta target
+- [x] Session-only persistence (reload keeps state; closing tab/browser clears unless exported)
+- [x] AI disabled by default in public builds (`VITE_ENABLE_AI=false`)
+- [x] Cloud sync scaffold remains disabled for beta (`VITE_ENABLE_CLOUD_SYNC=false`)
 
-## Local Gate Evidence
-- [x] `npm run build`
-- [x] `PW_PORT=4273 npx playwright test e2e/connect-human.spec.ts`
-- [x] `PW_PORT=4273 npm run test:smoke`
-- [x] `PW_PORT=4273 npm run test:acceptance`
-- [x] `PW_PORT=4273 npm run test:a11y`
+## Core Gate (must be green on release candidate)
+Run in order:
+1. `npm run doctor`
+2. `npm run build`
+3. `npm run test:smoke`
+4. `npm run test:mvp`
+5. `npm run test:qa`
 
-## Release Tag
-- [x] Create annotated tag `v0.2.4`
-- [x] Push `main` and tags to local origin
-- [x] Verify `v0.2.4` exists on origin
+Pass criteria:
+- [x] 0 failed tests
+- [x] no unexpected skips (current `test:qa` has 4 intentional swimlane skips)
 
-## Local Deliverable Freeze
-- [x] Generate `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.4_handoff_20260213-175637.tar.gz`
-- [x] Generate `/Users/tarique/Downloads/banking-diagram-mvp_v0.2.4_handoff_20260213-175637.zip`
+## Reliability Soaks (must be green before beta cut)
+1. `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/mouse-interactions.spec.ts --repeat-each=30 --workers=1`
+2. `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/edge-reconnect.spec.ts --repeat-each=20 --workers=1`
+3. `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/mvp-interactions-minimal.spec.ts --repeat-each=20 --workers=1`
 
-## Optional Public Promotion (post local signoff)
-- [ ] Deploy rebased `main` to hosted target
-- [ ] Run smoke flow on hosted URL
-- [ ] Monitor runtime errors for 24h
+Pass criteria:
+- [x] 0 flakes
 
-## MVP Storage Contract (Session-Only)
-- [ ] Confirm session-only autosave behavior:
-  - [ ] Refresh reload keeps the current diagram and preferences.
-  - [ ] Closing the tab/browser clears the diagram (blank-first on reopen).
-  - [ ] Export JSON is the durable way to keep work for now.
+## Accessibility + Keyboard Coverage
+- [x] `npm run test:a11y`
+- [x] `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/smoke.spec.ts --workers=1`
+- [x] `PW_REUSE_SERVER=1 PW_PORT=5173 npx playwright test e2e/vpe-hand-tool.spec.ts --workers=1`
 
-## Blank-First + Connect Rebuild Evidence (2026-02-15)
-- [x] Default board initializes blank (`0 nodes / 0 edges`) for new workspaces.
-- [x] File menu exposes explicit starter action (`toolbar-insert-starter-template`).
-- [x] Reset now clears to blank canvas while preserving recovery snapshot behavior.
-- [x] Select mode supports direct handle-to-handle connect; Connect tool remains sticky for chained linking.
-- [x] Edge defaults persist via local preference keys:
-  - `finflow-builder.edge-path-default.v1`
-  - `finflow-builder.edge-style-default.v1`
-- [x] `PW_REUSE_SERVER=1 npx playwright test e2e/mouse-interactions.spec.ts --repeat-each=6 --workers=1` (passed, 24/24)
-- [x] `PW_REUSE_SERVER=1 npx playwright test e2e/connect-direct-select.spec.ts --workers=1` (passed, 2/2)
-- [x] `PW_REUSE_SERVER=1 npm run test:qa` (passed, 77/77)
+## Session-Only Contract Validation
+- [x] `e2e/mvp.spec.ts` remains green
+- [x] `scripts/pilot-human.mjs` reports `reloadKeepsSession: true`
+- [ ] manual close/reopen confirms blank canvas
 
-## QA Lock Evidence (2026-02-15)
-- [x] Archived QA artifacts to `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-15T19-14-39Z-qa-lock`
-- [x] `PW_REUSE_SERVER=1 npx playwright test e2e/mouse-interactions.spec.ts --repeat-each=20 --workers=1` (passed, 80/80)
-- [x] Firefox sanity:
-  - `e2e/smoke.spec.ts` (8/8)
-  - `e2e/mvp.spec.ts` (1/1)
-  - `e2e/node-properties.spec.ts` (2/2)
-  - `e2e/vpe-hand-tool.spec.ts` (2/2)
-- [ ] WebKit sanity fully green
-  - `e2e/mvp.spec.ts` and `e2e/node-properties.spec.ts` passed
-  - `e2e/smoke.spec.ts` has 1 failing case (`space drag pans the canvas viewport`)
-  - `e2e/vpe-hand-tool.spec.ts` has 1 failing case (`hand tool pans canvas without holding space`)
-- [x] Focused integrity/a11y drill:
-  - `e2e/inspector-notes-isolation.spec.ts`
-  - `e2e/diagram-migrations.spec.ts`
-  - `e2e/workspace-collision.spec.ts`
-  - `e2e/note-drag.spec.ts`
-  - `e2e/a11y.spec.ts`
-  - Result: 12/12
-- [x] Mobile/theme/bottom-toolbar drill:
-  - `e2e/mvp-mobile-toolbar.spec.ts`
-  - `e2e/mvp-mobile-actions.spec.ts`
-  - `e2e/theme-preference.spec.ts`
-  - `e2e/vpe-bottom-toolbar.spec.ts`
-  - Result: 6/6
-- [x] Synthetic pilot evidence created: `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-15T19-12-32-822Z-synthetic-pilot.json` (5/5 complete)
-- [x] 200-node soak evidence created: `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-15T19-10-50-037Z-performance-soak.json`
-- [ ] Eliminate passive-listener console warnings under heavy pan/zoom before public GA
-- [x] Final release gate rerun after QA updates: `npm run doctor`, `npm run build`, `PW_REUSE_SERVER=1 npm run test:qa` (84/84)
+## Performance + No-Noise Checks
+- [x] `QA_BASE_URL='http://127.0.0.1:5173/?fresh=1' node scripts/qa-focused.mjs`
+- [x] `PILOT_BASE_URL='http://127.0.0.1:5173/?fresh=1' node scripts/pilot-human.mjs`
+- [x] pilot summary reports no `consoleErrors` and no `pageErrors`
 
-## QA Reconfirmation (2026-02-16)
-- [x] Swimlane inspector management added (rename + collapse/lock/hide) and covered by `e2e/swimlane-objects.spec.ts`.
-- [x] `npm run doctor` (passed)
-- [x] `npm run build` (passed)
-- [x] `PW_REUSE_SERVER=1 npm run test:smoke` (passed, 8/8)
-- [x] `PW_REUSE_SERVER=1 npm run test:mvp` (passed, 1/1)
-- [x] `PW_REUSE_SERVER=1 npm run test:mvp:onboarding` (passed, 1/1)
-- [x] `PW_REUSE_SERVER=1 npm run test:mvp:feedback` (passed, 6/6)
-- [x] `PW_REUSE_SERVER=1 npm run test:qa` (passed, 87/87)
-- [x] Interaction flake hardening verified:
-  - `PW_REUSE_SERVER=1 npx playwright test e2e/note-drag.spec.ts --workers=1 --repeat-each=5` (5/5)
-  - `PW_REUSE_SERVER=1 npx playwright test e2e/smoke.spec.ts --workers=1 --repeat-each=4` (32/32)
-  - `PW_REUSE_SERVER=1 npx playwright test e2e/acceptance.spec.ts -g "mobile bottom dock uses More overflow for contextual actions" --workers=1 --repeat-each=8` (8/8)
+## Manual QA + Real User Pilot
+- [ ] Execute `/Users/tarique/Documents/banking-diagram-mvp/docs/MVP_MANUAL_QA_CHECKLIST.md`
+- [ ] Run 3–5 real-user sessions
+- [ ] Log all sessions in `/Users/tarique/Documents/banking-diagram-mvp/docs/LOCAL_PILOT_SESSION_LOG.csv`
+- [ ] Completion rate >= 80%
+- [ ] No unresolved P0 issues
+- [ ] P1 issues triaged (fix now or explicit defer)
+
+## Security/Dependency Gate
+- [x] `npm audit --omit=dev --audit-level=high`
+- [x] Result: 0 high / 0 critical vulnerabilities
+
+## Hosted CI/Release Policy
+- [ ] Branch protection on hosted `main` requires `qa`
+- [x] RC workflow includes `test:qa` + soak subset (`beta_soak` job on `v*-public-rc*` tags)
+- [ ] Freeze beta branch/tag and record commit in `docs/LOCAL_RELEASE_HANDOFF.md`
+
+## Vercel Deploy Readiness
+- [ ] Production branch is `main`
+- [ ] Env set in Preview + Production:
+  - [ ] `VITE_ENABLE_AI=false`
+  - [ ] `VITE_ENABLE_CLOUD_SYNC=false`
+  - [ ] `VITE_FEEDBACK_URL=<mailto or form>`
+- [ ] Production smoke completed on deployed URL:
+  - [ ] blank-first load
+  - [ ] insert starter template
+  - [ ] connect/reconnect
+  - [ ] export JSON
+  - [ ] reset blank
+  - [ ] import restore
+  - [ ] no console errors
+
+## Latest Evidence (update per run)
+- Date: `2026-02-19` (local run window)
+- Branch: `codex/finflow-mvp-main`
+- Commit: `pending this docs/update commit`
+- Gate results:
+  - doctor: `pass`
+  - build: `pass`
+  - smoke: `pass` (`8/8`)
+  - mvp: `pass` (`1/1`)
+  - qa: `pass` (`86 passed / 4 skipped / 0 failed`)
+- Soak results:
+  - mouse interactions: `pass` (`120/120`)
+  - edge reconnect: `pass` (`40/40`)
+  - minimal interactions: `pass` (`20/20`)
+- Pilot artifacts: `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T03-57-21-798Z`
+- Performance artifacts: `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-19T03-57-10-396Z`
