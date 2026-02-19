@@ -162,10 +162,10 @@ body {
 }
 
 .shell-panel {
-  border: 1px solid color-mix(in srgb, var(--ff-divider) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ff-divider) 30%, transparent);
   border-radius: var(--ff-radius-lg);
-  background: color-mix(in srgb, var(--ff-surface-panel) 94%, transparent);
-  box-shadow: var(--ff-shadow-soft);
+  background: color-mix(in srgb, var(--ff-surface-panel) 92%, transparent);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.07);
 }
 
 .resize-handle-x {
@@ -207,8 +207,8 @@ body {
 }
 
 .menu-trigger:hover {
-  border-color: color-mix(in srgb, var(--ff-divider) 42%, transparent);
-  background: color-mix(in srgb, var(--ff-surface-muted) 76%, transparent);
+  border-color: color-mix(in srgb, var(--ff-divider) 30%, transparent);
+  background: color-mix(in srgb, var(--ff-surface-muted) 64%, transparent);
 }
 
 .dark .menu-trigger {
@@ -223,11 +223,11 @@ body {
 }
 
 .menu-panel {
-  border: 1px solid color-mix(in srgb, var(--ff-divider) 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ff-divider) 38%, transparent);
   border-radius: var(--ff-radius-md);
   background: color-mix(in srgb, var(--ff-surface-elevated) 96%, transparent);
-  box-shadow: var(--ff-shadow-popover);
-  padding: 0.35rem;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  padding: 0.32rem;
 }
 
 .dark .menu-panel {
@@ -287,8 +287,8 @@ body {
   gap: 0.4rem;
   min-height: var(--control-h-default);
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--ff-divider) 40%, transparent);
-  background: color-mix(in srgb, var(--ff-surface-elevated) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ff-divider) 32%, transparent);
+  background: color-mix(in srgb, var(--ff-surface-elevated) 68%, transparent);
   color: var(--ff-text-secondary);
   padding: 0 0.72rem;
   font-size: var(--ff-type-field);
@@ -299,15 +299,15 @@ body {
 }
 
 .status-pill:hover {
-  border-color: color-mix(in srgb, var(--ff-divider) 55%, transparent);
-  background: color-mix(in srgb, var(--ff-surface-muted) 78%, transparent);
+  border-color: color-mix(in srgb, var(--ff-divider) 46%, transparent);
+  background: color-mix(in srgb, var(--ff-surface-muted) 68%, transparent);
 }
 
 .status-pill-menu {
-  border: 1px solid color-mix(in srgb, var(--ff-divider) 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ff-divider) 36%, transparent);
   border-radius: var(--ff-radius-md);
   background: color-mix(in srgb, var(--ff-surface-elevated) 96%, transparent);
-  box-shadow: var(--ff-shadow-popover);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
   padding: 0.5rem;
 }
 
@@ -585,10 +585,10 @@ body {
   width: fit-content;
   max-width: calc(100% - 1rem);
   padding: 0.2rem 0.3rem;
-  border: 1px solid color-mix(in srgb, var(--ff-divider) 32%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ff-divider) 26%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ff-surface-elevated) 58%, transparent);
-  box-shadow: var(--ff-shadow-soft);
+  background: color-mix(in srgb, var(--ff-surface-elevated) 48%, transparent);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.1);
   backdrop-filter: blur(12px);
   will-change: transform, opacity;
   transition: transform var(--duration-medium) var(--easing-standard),
@@ -1160,11 +1160,11 @@ body {
 
 .inspector-section {
   margin-bottom: 12px;
-  border: 1px solid color-mix(in srgb, var(--ff-divider) 34%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ff-divider) 24%, transparent);
   border-radius: var(--ff-radius-md);
-  background: color-mix(in srgb, var(--ff-surface-elevated) 86%, transparent);
+  background: color-mix(in srgb, var(--ff-surface-elevated) 72%, transparent);
   box-shadow: none;
-  padding: 10px;
+  padding: 9px;
 }
 
 .inspector-section-head {
@@ -1172,9 +1172,9 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  border-bottom: 1px solid color-mix(in srgb, var(--ff-divider) 26%, transparent);
-  padding: 0 0 var(--space-2);
-  margin-bottom: var(--space-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--ff-divider) 18%, transparent);
+  padding: 0 0 7px;
+  margin-bottom: 7px;
 }
 
 .dark .inspector-section-head {
@@ -1198,9 +1198,9 @@ body {
 
 .inspector-label {
   margin-left: 1px;
-  font-size: var(--ff-type-label);
+  font-size: 11px;
   line-height: 1.25;
-  font-weight: 600;
+  font-weight: 550;
   letter-spacing: 0.01em;
   text-transform: none;
   color: var(--ff-text-muted);
@@ -1224,7 +1224,7 @@ body {
 .inspector-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .inspector-input,
@@ -1243,10 +1243,10 @@ body {
 }
 
 .inspector-textarea {
-  min-height: 5.75rem;
+  min-height: 5.25rem;
   width: 100%;
   resize: vertical;
-  padding: 0.7rem;
+  padding: 0.65rem;
   font-size: var(--ff-type-field);
   line-height: 1.5;
 }

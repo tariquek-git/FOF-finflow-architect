@@ -882,11 +882,12 @@ const Inspector: React.FC<InspectorProps> = ({
   }, [edgeValues, selectedEdge, onUpdateEdge]);
 
   const renderEmptyState = () => (
-    <div className="mb-3 rounded-lg border border-divider/45 bg-surface-elevated/65 p-3 text-left shadow-[var(--ff-shadow-soft)]">
-      <p className="text-[12px] text-text-muted">
-        Select a node or edge to edit properties, or start by inserting a block.
+    <div className="mb-3 rounded-lg border border-divider/28 bg-surface-elevated/55 p-3 text-left">
+      <p className="text-[13px] font-semibold text-text-secondary">Nothing selected</p>
+      <p className="mt-1 text-[12px] text-text-muted">
+        Select an object to edit properties, or insert a node to begin.
       </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="secondary" onClick={onOpenInsertPanel}>
           Open Insert
         </Button>
@@ -905,7 +906,7 @@ const Inspector: React.FC<InspectorProps> = ({
     const laneToggleClass = (active: boolean) =>
       active ? 'status-chip !border-accent/70 !bg-accent/12 !text-accent' : 'status-chip';
     return (
-      <div data-testid="inspector-swimlane-panel" className="mb-3 rounded-lg border border-divider/70 bg-surface-muted/40 p-3">
+      <div data-testid="inspector-swimlane-panel" className="mb-3 rounded-lg border border-divider/35 bg-surface-muted/26 p-2.5">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-[12px] font-semibold text-text-secondary">Lane Properties</p>
           <button
@@ -987,13 +988,13 @@ const Inspector: React.FC<InspectorProps> = ({
 
   return (
     <div
-      className="flex h-full flex-col bg-surface-panel/85"
+      className="flex h-full flex-col bg-surface-panel/80"
       data-canvas-interactive="true"
       onPointerDownCapture={(event) => event.stopPropagation()}
       onMouseDownCapture={(event) => event.stopPropagation()}
     >
       <div
-        className="sticky top-0 z-10 border-b border-divider/65 bg-surface-panel/88 px-3 py-2 backdrop-blur"
+        className="sticky top-0 z-10 border-b border-divider/35 bg-surface-panel/82 px-2.5 py-2 backdrop-blur"
       >
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -1011,7 +1012,7 @@ const Inspector: React.FC<InspectorProps> = ({
 
         <div
           data-testid="inspector-mode-title"
-          className="mb-2 rounded-lg border border-divider/45 bg-surface-muted/40 px-2.5 py-2"
+          className="mb-1.5 rounded-lg border border-divider/30 bg-surface-muted/26 px-2.5 py-1.5"
         >
           <div className="text-[11px] font-semibold text-text-muted">
             {modeMeta.title}
@@ -1022,10 +1023,10 @@ const Inspector: React.FC<InspectorProps> = ({
         </div>
       </div>
 
-      <div ref={scrollBodyRef} data-testid="inspector-scroll-body" className="custom-scrollbar flex-1 overflow-y-auto p-2.5">
+      <div ref={scrollBodyRef} data-testid="inspector-scroll-body" className="custom-scrollbar flex-1 overflow-y-auto p-2">
         {selectionMode === 'node' && selectedNode ? (
           <div className="mb-2 flex justify-end">
-            <button type="button" onClick={onDuplicateSelection} className="status-chip !h-7 !px-2.5">
+            <button type="button" onClick={onDuplicateSelection} className="status-chip !h-7 !px-2 text-[11px]">
               Duplicate
             </button>
           </div>

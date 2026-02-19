@@ -226,10 +226,10 @@ const Sidebar = React.memo<SidebarProps>(({
       <div
         data-testid="sidebar-search-results"
         className={`overflow-hidden rounded-lg border ${
-          isDarkMode ? 'border-divider/30 bg-surface-elevated/38' : 'border-divider/30 bg-surface-elevated/62'
+          isDarkMode ? 'border-divider/25 bg-surface-elevated/26' : 'border-divider/25 bg-surface-elevated/52'
         }`}
       >
-        <div className="flex items-center justify-between px-2.5 py-2">
+        <div className="flex items-center justify-between px-2.5 py-1.5">
           <span className="ui-section-title">Results</span>
           <span className="text-[10px] text-text-muted">Enter to add · Esc to clear</span>
         </div>
@@ -294,12 +294,12 @@ const Sidebar = React.memo<SidebarProps>(({
     return (
       <div
         key={type}
-        className={`group relative min-h-[4.2rem] overflow-hidden rounded-lg border transition-all ${
+        className={`group relative min-h-[3.9rem] overflow-hidden rounded-lg border transition-all ${
           keyboardActiveType === type
             ? 'border-accent/45 bg-accent/10'
             : isDarkMode
-              ? 'border-divider/45 bg-surface-elevated/45 hover:border-divider/70'
-              : 'border-divider/45 bg-surface-elevated/75 hover:border-divider/70 hover:bg-surface-muted/60'
+              ? 'border-divider/35 bg-surface-elevated/30 hover:border-divider/60'
+              : 'border-divider/35 bg-surface-elevated/62 hover:border-divider/60 hover:bg-surface-muted/52'
         }`}
         onMouseEnter={() => setHoveredType(type)}
         onMouseLeave={() => setHoveredType((prev) => (prev === type ? null : prev))}
@@ -314,7 +314,7 @@ const Sidebar = React.memo<SidebarProps>(({
               handleAddFromLibrary(type);
             }
           }}
-          className="flex h-full w-full cursor-grab flex-col items-center gap-1 px-2 py-1.5 text-center active:cursor-grabbing"
+          className="flex h-full w-full cursor-grab flex-col items-center gap-1 px-1.5 py-1.5 text-center active:cursor-grabbing"
           title={`Drag ${type} to canvas`}
         >
           <span
@@ -326,12 +326,16 @@ const Sidebar = React.memo<SidebarProps>(({
           >
             {ENTITY_ICONS[type]}
           </span>
-          <span className="line-clamp-2 text-[10.5px] font-medium leading-4 text-text-secondary">
+          <span className="line-clamp-2 text-[10.5px] font-medium leading-4 text-text-secondary/95">
             {short}
           </span>
         </button>
 
-        <div className="pointer-events-none absolute right-1 top-1 flex items-center gap-1">
+        <div
+          className={`pointer-events-none absolute right-1 top-1 flex items-center gap-1 transition-opacity ${
+            isFavorite ? 'opacity-100' : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
+          }`}
+        >
           <button
             type="button"
             onClick={() => toggleFavorite(type)}
@@ -374,16 +378,14 @@ const Sidebar = React.memo<SidebarProps>(({
     <div className={`flex h-full ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>
       {isExpanded ? (
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="space-y-2 border-b border-divider/35 px-3 py-2">
+          <div className="space-y-2 border-b border-divider/20 px-2.5 py-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-accent" />
                 <span className="ui-section-title">Node Library</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span
-                  className="shrink-0 rounded-full border border-divider/50 px-2 py-0.5 text-[10px] font-medium text-text-muted"
-                >
+                <span className="shrink-0 rounded-full border border-divider/35 px-2 py-0.5 text-[10px] font-medium text-text-muted">
                   {totalVisibleBlocks}/{TOTAL_LIBRARY_COUNT}
                 </span>
                 <button
@@ -442,7 +444,7 @@ const Sidebar = React.memo<SidebarProps>(({
             {!isSearchMode && showQuickStart ? (
               <div
                 data-testid="quickstart-panel"
-                className="flex items-center justify-between gap-2 rounded-lg border border-divider/35 bg-surface-muted/30 px-2 py-1"
+                className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-divider/30 bg-surface-muted/18 px-2 py-1"
               >
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-text-muted">
                   <Sparkles className="h-3.5 w-3.5 text-accent/80" aria-hidden="true" />
@@ -515,7 +517,7 @@ const Sidebar = React.memo<SidebarProps>(({
             ) : null}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-2.5 py-2">
+          <div className="flex-1 overflow-y-auto px-2 py-2">
             {isSearchMode ? (
               renderSearchResults()
             ) : sections.length === 0 ? (
@@ -529,18 +531,18 @@ const Sidebar = React.memo<SidebarProps>(({
                 No matching blocks for "{query}".
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {sections.map((section) => (
                   <div
                     key={section.key}
                     className={`overflow-hidden rounded-lg border ${
-                      isDarkMode ? 'border-divider/30 bg-surface-elevated/38' : 'border-divider/30 bg-surface-elevated/58'
+                      isDarkMode ? 'border-divider/25 bg-surface-elevated/24' : 'border-divider/25 bg-surface-elevated/48'
                     }`}
                   >
                     <button
                       onClick={() => toggleSection(section.key)}
-                      className={`flex w-full items-center justify-between px-2.5 py-2 text-[12px] font-semibold ${
-                        isDarkMode ? 'text-text-secondary hover:bg-surface-muted/45' : 'text-text-secondary hover:bg-surface-muted/50'
+                      className={`flex w-full items-center justify-between px-2.5 py-1.5 text-[12px] font-semibold ${
+                        isDarkMode ? 'text-text-secondary hover:bg-surface-muted/32' : 'text-text-secondary hover:bg-surface-muted/42'
                       }`}
                     >
                       <span className="flex items-center gap-2">

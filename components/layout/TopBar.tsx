@@ -195,22 +195,22 @@ const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <header
-      className="ff-topbar shell-panel glass-panel z-50 mx-2 mt-2 flex shrink-0 flex-col gap-2 px-3 py-2.5 md:mx-3 md:px-4"
+      className="ff-topbar shell-panel glass-panel z-50 mx-2 mt-2 flex shrink-0 flex-col gap-2 px-3 py-2 md:mx-3 md:px-3.5"
     >
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--ff-accent-primary)] text-[12px] font-semibold text-white shadow-soft">
             FF
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-[15px] font-semibold tracking-tight text-text-primary">Flow of Funds Studio</h1>
-            <p className="text-[11px] font-medium text-text-muted">
+            <p className="hidden text-[11px] font-medium text-text-muted sm:block">
               Fintech Diagram Workspace
             </p>
           </div>
           <span
             data-testid="workspace-display"
-            className="inline-flex min-w-0 max-w-[18rem] items-center truncate rounded-full border border-divider/60 bg-surface-elevated/70 px-2.5 py-1 text-[12px] font-medium text-text-secondary"
+            className="inline-flex min-w-0 max-w-[17rem] items-center truncate rounded-full border border-divider/40 bg-surface-elevated/60 px-2 py-0.5 text-[11px] font-medium text-text-secondary"
             title={`${workspaceName} · ${workspaceShortId}`}
           >
             <span className="truncate">{workspaceName}</span>
@@ -230,9 +230,10 @@ const TopBar: React.FC<TopBarProps> = ({
                     data-testid="ai-disabled-badge"
                     title="AI is off for MVP"
                     aria-label="AI is off for MVP"
-                    className="ml-1 inline-flex items-center gap-1 rounded-full border border-divider/45 bg-surface-panel/70 px-2 py-0.5 text-[10px] font-semibold text-text-muted"
+                    className="ml-1 inline-flex items-center gap-1 rounded-full border border-divider/30 bg-surface-panel/45 px-1.5 py-0.5 text-[10px] font-semibold text-text-muted/85"
                   >
                     <Bot className="h-3 w-3" aria-hidden="true" />
+                    <span className="hidden sm:inline">AI Off</span>
                     <span className="sr-only">AI Off</span>
                   </span>
                 ) : null}
@@ -269,7 +270,7 @@ const TopBar: React.FC<TopBarProps> = ({
           </DetailsMenu>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -290,7 +291,7 @@ const TopBar: React.FC<TopBarProps> = ({
             {isInspectorOpen ? 'Hide Inspect' : 'Inspect'}
           </button>
 
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1 rounded-full border border-divider/35 bg-surface-elevated/50 px-1 py-0.5">
             <button
               type="button"
               title="Undo"
@@ -311,7 +312,7 @@ const TopBar: React.FC<TopBarProps> = ({
             >
               <RotateCw className="h-3.5 w-3.5" />
             </button>
-          </div>
+          
 
           <DetailsMenu
             detailsRef={viewDetailsRef}
@@ -419,53 +420,56 @@ const TopBar: React.FC<TopBarProps> = ({
                 Center diagram
               </button>
           </DetailsMenu>
+          </div>
 
-          <button
-            type="button"
-            data-testid="toolbar-open-command"
-            onClick={onOpenCommandPalette}
-            className="menu-trigger inline-flex h-8 items-center gap-1.5 rounded-[10px] px-2.5"
-            title="Open command palette (Cmd/Ctrl+K)"
-            aria-label="Open command palette"
-          >
-            <Command className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1 rounded-full border border-divider/35 bg-surface-elevated/50 px-1 py-0.5">
+            <button
+              type="button"
+              data-testid="toolbar-open-command"
+              onClick={onOpenCommandPalette}
+              className="menu-trigger inline-flex h-8 items-center gap-1.5 rounded-[10px] px-2.5"
+              title="Open command palette (Cmd/Ctrl+K)"
+              aria-label="Open command palette"
+            >
+              <Command className="h-3.5 w-3.5" />
+            </button>
 
-          <button
-            type="button"
-            data-testid="toolbar-help-open"
-            onClick={onOpenHelp}
-            className={`${actionButton(isDarkMode)} !px-2`}
-            title="Open quick start help ( ? )"
-            aria-label="Open quick start help"
-          >
-            <HelpCircle className="h-3.5 w-3.5" />
-          </button>
+            <button
+              type="button"
+              data-testid="toolbar-help-open"
+              onClick={onOpenHelp}
+              className={`${actionButton(isDarkMode)} !px-2`}
+              title="Open quick start help ( ? )"
+              aria-label="Open quick start help"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+            </button>
 
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className={`${actionButton(isDarkMode)} !px-2`}
-            title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
-            aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
-          >
-            {isDarkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-          </button>
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className={`${actionButton(isDarkMode)} !px-2`}
+              title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+              aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+            >
+              {isDarkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            </button>
 
-          <FunctionToolbar
-            recentWorkspaces={recentWorkspaces}
-            feedbackHref={feedbackHref}
-            onRestoreRecovery={onRestoreRecovery}
-            onCreateWorkspace={onCreateWorkspace}
-            onOpenWorkspace={onOpenWorkspace}
-            onInsertStarterTemplate={onInsertStarterTemplate}
-            onResetCanvas={onResetCanvas}
-            onImportDiagram={onImportDiagram}
-            onExportDiagram={onExportDiagram}
-            onExportSvg={onExportSvg}
-            onExportPng={onExportPng}
-            onExportPdf={onExportPdf}
-          />
+            <FunctionToolbar
+              recentWorkspaces={recentWorkspaces}
+              feedbackHref={feedbackHref}
+              onRestoreRecovery={onRestoreRecovery}
+              onCreateWorkspace={onCreateWorkspace}
+              onOpenWorkspace={onOpenWorkspace}
+              onInsertStarterTemplate={onInsertStarterTemplate}
+              onResetCanvas={onResetCanvas}
+              onImportDiagram={onImportDiagram}
+              onExportDiagram={onExportDiagram}
+              onExportSvg={onExportSvg}
+              onExportPng={onExportPng}
+              onExportPdf={onExportPdf}
+            />
+          </div>
         </div>
       </div>
 
