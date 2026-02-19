@@ -63,95 +63,115 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
 
   return (
     <div data-testid="bottom-tool-dock" className="ff-bottom-dock" data-canvas-interactive="true">
-      <button
-        type="button"
-        data-testid="bottom-tool-select"
-        onClick={() => onSetActiveTool('select')}
-        aria-label="Select tool"
-        aria-pressed={activeTool === 'select'}
-        title="Select (V)"
-        className={dockButtonClass(activeTool === 'select')}
+      <div
+        className="ff-bottom-group"
+        data-testid="bottom-group-navigation"
+        role="group"
+        aria-label="Navigation tools"
       >
-        <MousePointer2 className="h-4 w-4" />
-      </button>
+        <button
+          type="button"
+          data-testid="bottom-tool-select"
+          onClick={() => onSetActiveTool('select')}
+          aria-label="Select tool"
+          aria-keyshortcuts="V"
+          aria-pressed={activeTool === 'select'}
+          title="Select (V)"
+          className={dockButtonClass(activeTool === 'select')}
+        >
+          <MousePointer2 className="h-4 w-4" />
+        </button>
 
-      <button
-        type="button"
-        data-testid="bottom-tool-hand"
-        onClick={() => onSetActiveTool('hand')}
-        aria-label="Hand tool"
-        aria-pressed={activeTool === 'hand'}
-        title="Hand (H)"
-        className={dockButtonClass(activeTool === 'hand')}
+        <button
+          type="button"
+          data-testid="bottom-tool-hand"
+          onClick={() => onSetActiveTool('hand')}
+          aria-label="Hand tool"
+          aria-keyshortcuts="H"
+          aria-pressed={activeTool === 'hand'}
+          title="Hand (H)"
+          className={dockButtonClass(activeTool === 'hand')}
+        >
+          <Hand className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div
+        className="ff-bottom-group"
+        data-testid="bottom-group-creation"
+        role="group"
+        aria-label="Creation tools"
       >
-        <Hand className="h-4 w-4" />
-      </button>
+        <button
+          type="button"
+          data-testid="bottom-tool-connect"
+          onClick={() => onSetActiveTool('draw')}
+          aria-label="Connect tool"
+          aria-keyshortcuts="C"
+          aria-pressed={activeTool === 'draw'}
+          title="Connect mode (C)"
+          className={dockButtonClass(activeTool === 'draw')}
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
 
-      <button
-        type="button"
-        data-testid="bottom-tool-connect"
-        onClick={() => onSetActiveTool('draw')}
-        aria-label="Connect tool"
-        aria-pressed={activeTool === 'draw'}
-        title="Connect mode (C)"
-        className={dockButtonClass(activeTool === 'draw')}
+        <button
+          type="button"
+          data-testid="bottom-tool-text"
+          onClick={() => onSetActiveTool('text')}
+          aria-label="Text tool"
+          aria-keyshortcuts="T"
+          aria-pressed={activeTool === 'text'}
+          title="Text (T)"
+          className={dockButtonClass(activeTool === 'text')}
+        >
+          <TypeIcon className="h-4 w-4" />
+        </button>
+
+        <InsertConnectorButton
+          onClick={onAddConnector}
+          onNativeDragStart={onConnectorNativeDragStart}
+          className="ff-bottom-btn"
+          showLabel={false}
+        />
+      </div>
+
+      <div
+        className="ff-bottom-group"
+        data-testid="bottom-group-view"
+        role="group"
+        aria-label="View controls"
       >
-        <Pencil className="h-4 w-4" />
-      </button>
+        <button
+          type="button"
+          data-testid="bottom-zoom-out"
+          onClick={onZoomOut}
+          aria-label="Zoom out"
+          title="Zoom out (Ctrl/Cmd -)"
+          className={dockButtonClass()}
+          style={{ display: showInlineZoomButtons ? undefined : 'none' }}
+        >
+          <Minus className="h-4 w-4" />
+        </button>
 
-      <button
-        type="button"
-        data-testid="bottom-tool-text"
-        onClick={() => onSetActiveTool('text')}
-        aria-label="Text tool"
-        aria-pressed={activeTool === 'text'}
-        title="Text (T)"
-        className={dockButtonClass(activeTool === 'text')}
-      >
-        <TypeIcon className="h-4 w-4" />
-      </button>
-
-      <span className="ff-bottom-divider" aria-hidden="true" />
-
-      <InsertConnectorButton
-        onClick={onAddConnector}
-        onNativeDragStart={onConnectorNativeDragStart}
-        className="ff-bottom-btn"
-        showLabel={false}
-      />
-
-      <span className="ff-bottom-divider" aria-hidden="true" />
-
-      <button
-        type="button"
-        data-testid="bottom-zoom-out"
-        onClick={onZoomOut}
-        aria-label="Zoom out"
-        title="Zoom out (Ctrl/Cmd -)"
-        className={dockButtonClass()}
-        style={{ display: showInlineZoomButtons ? undefined : 'none' }}
-      >
-        <Minus className="h-4 w-4" />
-      </button>
-
-      <DetailsMenu
-        detailsRef={zoomDetailsRef as unknown as React.RefObject<HTMLDetailsElement | null>}
-        className="ff-bottom-zoom-details"
-        trigger={
-          <>
-            <span className="ff-bottom-zoom-text">{zoomPercent}%</span>
-            <ChevronDown className="h-3.5 w-3.5" />
-          </>
-        }
-        triggerProps={{
-          'data-testid': 'bottom-zoom-menu-trigger',
-          className: 'ff-bottom-btn ff-bottom-zoom-trigger',
-          'aria-label': 'Zoom level',
-          title: 'Zoom level'
-        }}
-        menuId="bottom-zoom-menu"
-        menuClassName="menu-panel ff-bottom-zoom-menu"
-      >
+        <DetailsMenu
+          detailsRef={zoomDetailsRef as unknown as React.RefObject<HTMLDetailsElement | null>}
+          className="ff-bottom-zoom-details"
+          trigger={
+            <>
+              <span className="ff-bottom-zoom-text">{zoomPercent}%</span>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </>
+          }
+          triggerProps={{
+            'data-testid': 'bottom-zoom-menu-trigger',
+            className: 'ff-bottom-btn ff-bottom-zoom-trigger',
+            'aria-label': 'Zoom level',
+            title: 'Zoom level'
+          }}
+          menuId="bottom-zoom-menu"
+          menuClassName="menu-panel ff-bottom-zoom-menu"
+        >
           <div className="menu-section-label">Zoom</div>
           {!showInlineZoomButtons ? (
             <>
@@ -213,45 +233,53 @@ const BottomToolDock: React.FC<BottomToolDockProps> = ({
               <span>{percent}%</span>
             </button>
           ))}
-      </DetailsMenu>
+        </DetailsMenu>
 
-      <button
-        type="button"
-        data-testid="bottom-zoom-in"
-        onClick={onZoomIn}
-        aria-label="Zoom in"
-        title="Zoom in (Ctrl/Cmd +)"
-        className={dockButtonClass()}
-        style={{ display: showInlineZoomButtons ? undefined : 'none' }}
-      >
-        <Plus className="h-4 w-4" />
-      </button>
-
-      <button
-        type="button"
-        data-testid="bottom-fit-view"
-        onClick={onFitView}
-        aria-label="Fit view"
-        title="Fit to view"
-        className={dockButtonClass()}
-        style={{ display: showInlineZoomButtons ? undefined : 'none' }}
-      >
-        <Maximize2 className="h-4 w-4" />
-      </button>
-
-      {isMobileViewport && showMoreButton ? (
         <button
           type="button"
-          data-testid="bottom-more-actions"
-          onClick={onToggleMore}
-          aria-label="More actions"
-          aria-expanded={isMoreOpen}
-          title="More actions"
-          className={dockButtonClass(isMoreOpen)}
+          data-testid="bottom-zoom-in"
+          onClick={onZoomIn}
+          aria-label="Zoom in"
+          title="Zoom in (Ctrl/Cmd +)"
+          className={dockButtonClass()}
+          style={{ display: showInlineZoomButtons ? undefined : 'none' }}
         >
-          <MoreHorizontal className="h-4 w-4" />
+          <Plus className="h-4 w-4" />
         </button>
-      ) : null}
+
+      </div>
+
+      <div
+        className="ff-bottom-group"
+        data-testid="bottom-group-utility"
+        role="group"
+        aria-label="Utility actions"
+      >
+        <button
+          type="button"
+          data-testid="bottom-fit-view"
+          onClick={onFitView}
+          aria-label="Fit view"
+          title="Fit to view"
+          className={dockButtonClass()}
+          style={{ display: showInlineZoomButtons ? undefined : 'none' }}
+        >
+          <Maximize2 className="h-4 w-4" />
+        </button>
+        {isMobileViewport && showMoreButton ? (
+          <button
+            type="button"
+            data-testid="bottom-more-actions"
+            onClick={onToggleMore}
+            aria-label="More actions"
+            aria-expanded={isMoreOpen}
+            title="More actions"
+            className={dockButtonClass(isMoreOpen)}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 };

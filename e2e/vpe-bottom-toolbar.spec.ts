@@ -15,6 +15,34 @@ test('desktop tray stays node-focused and excludes edge styling controls', async
   await page.waitForLoadState('networkidle');
   await insertStarterTemplate(page);
 
+  const dock = page.getByTestId('bottom-tool-dock');
+  await expect(dock).toBeVisible();
+  await expect(dock.getByTestId('bottom-group-navigation')).toBeVisible();
+  await expect(dock.getByTestId('bottom-group-creation')).toBeVisible();
+  await expect(dock.getByTestId('bottom-group-view')).toBeVisible();
+  await expect(dock.getByTestId('bottom-group-utility')).toBeVisible();
+
+  const groupOrder = await dock.locator('[data-testid^="bottom-group-"]').evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute('data-testid'))
+  );
+  expect(groupOrder).toEqual([
+    'bottom-group-navigation',
+    'bottom-group-creation',
+    'bottom-group-view',
+    'bottom-group-utility'
+  ]);
+
+  const zoomTrigger = page.getByTestId('bottom-zoom-menu-trigger');
+  const zoomMenu = page.locator('#bottom-zoom-menu');
+  await zoomTrigger.click();
+  await expect(zoomMenu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(zoomMenu).toBeHidden();
+  await zoomTrigger.click();
+  await expect(zoomMenu).toBeVisible();
+  await page.mouse.click(600, 260);
+  await expect(zoomMenu).toBeHidden();
+
   await page.getByTestId('toolbar-insert-connector').click();
   await expect(page.getByTestId('selection-action-tray')).toHaveCount(0);
   await expect(page.locator('button[title="straight edge path"]')).toHaveCount(0);
@@ -53,6 +81,7 @@ test('mobile bottom more-actions stays node-focused with no edge style controls'
   await page.locator('[data-node-id="starter-sponsor"]').click();
   const moreButton = page.getByTestId('bottom-more-actions');
   await expect(moreButton).toBeVisible();
+  await expect(page.getByTestId('bottom-group-utility')).toBeVisible();
   await moreButton.click();
 
   const overflow = page.getByTestId('bottom-overflow-sheet');
@@ -63,4 +92,36 @@ test('mobile bottom more-actions stays node-focused with no edge style controls'
   await page.keyboard.press('Escape');
   await page.getByTestId('toolbar-insert-connector').click();
   await expect(page.getByTestId('bottom-more-actions')).toHaveCount(0);
+});
+
+test('mobile 320px dock stays in viewport without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.addInitScript(() => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+  });
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await insertStarterTemplate(page);
+
+  await page.locator('[data-node-id="starter-sponsor"]').click();
+  const dock = page.getByTestId('bottom-tool-dock');
+  await expect(dock).toBeVisible();
+
+  const dockBox = await dock.boundingBox();
+  expect(dockBox).toBeTruthy();
+  if (dockBox) {
+    expect(dockBox.x).toBeGreaterThanOrEqual(0);
+    expect(dockBox.x + dockBox.width).toBeLessThanOrEqual(320);
+  }
+
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth + 1
+  );
+  expect(hasHorizontalOverflow).toBe(false);
+
+  const moreButton = page.getByTestId('bottom-more-actions');
+  await expect(moreButton).toBeVisible();
+  await moreButton.click();
+  await expect(page.getByTestId('bottom-overflow-sheet')).toBeVisible();
 });

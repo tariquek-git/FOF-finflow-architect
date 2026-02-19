@@ -595,10 +595,26 @@ body {
     opacity var(--duration-medium) var(--easing-standard);
 }
 
+.ff-bottom-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ff-bottom-group + .ff-bottom-group {
+  margin-left: 0.15rem;
+  padding-left: 0.45rem;
+  border-left: 1px solid color-mix(in srgb, var(--ff-divider-subtle) 52%, transparent);
+}
+
 .dark .ff-bottom-dock {
   border-color: color-mix(in srgb, var(--ff-divider-subtle) 64%, transparent);
   background: color-mix(in srgb, var(--ff-surface-elevated) 50%, transparent);
   box-shadow: 0 10px 22px rgba(2, 6, 23, 0.34);
+}
+
+.dark .ff-bottom-group + .ff-bottom-group {
+  border-left-color: color-mix(in srgb, var(--ff-divider-subtle) 80%, transparent);
 }
 
 .ff-mode-chip {
@@ -925,6 +941,11 @@ body {
     transform var(--duration-fast) var(--easing-standard);
 }
 
+.ff-bottom-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ff-focus-ring) 65%, transparent);
+  outline-offset: 1px;
+}
+
 @media (pointer: coarse), (max-width: 520px) {
   .ff-bottom-btn {
     min-height: 2.5rem;
@@ -987,17 +1008,6 @@ body {
   border-color: color-mix(in srgb, var(--ff-focus-ring) 52%, var(--ff-divider-subtle));
   background: color-mix(in srgb, var(--ff-accent-soft) 82%, var(--ff-surface-elevated));
   color: #d2f6ff;
-}
-
-.ff-bottom-divider {
-  width: 1px;
-  height: 16px;
-  background: color-mix(in srgb, var(--ff-divider-subtle) 56%, transparent);
-  margin: 0 2px;
-}
-
-.dark .ff-bottom-divider {
-  background: color-mix(in srgb, var(--ff-divider-subtle) 82%, transparent);
 }
 
 .ff-overflow-shell {
@@ -1104,6 +1114,11 @@ body {
     justify-content: center;
     gap: 0.4rem;
     padding: 0.45rem;
+  }
+
+  .ff-bottom-group + .ff-bottom-group {
+    margin-left: 0.12rem;
+    padding-left: 0.35rem;
   }
 
   .ff-bottom-btn {
