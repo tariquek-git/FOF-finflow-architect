@@ -344,13 +344,23 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
   const isTightShape =
     shape === NodeShape.DIAMOND || shape === NodeShape.CIRCLE || shape === NodeShape.SQUARE;
   const isDiamondShape = shape === NodeShape.DIAMOND;
+  const isCompactRoundShape = shape === NodeShape.CIRCLE || shape === NodeShape.SQUARE;
   const useCenteredLayout = !compactMode && isTightShape;
   const maxVisibleMetaItems = isTightShape ? (minDimension >= 150 ? 2 : 1) : 3;
   const canShowMetaForShape = isDiamondShape ? false : !isTightShape || minDimension >= 118;
   const canShowStatusForShape = isDiamondShape ? false : !isTightShape || minDimension >= 130;
   const centeredTitleFontSize = isDiamondShape
     ? clamp(titleFontSize * 0.92, 8.8, 12.5)
-    : titleFontSize;
+    : isCompactRoundShape
+      ? clamp(titleFontSize * 0.88, 8.4, 11.8)
+      : titleFontSize;
+  const centeredTitleMaxLines = isDiamondShape || isCompactRoundShape || minDimension < 122 ? 2 : 3;
+  const centeredTitleClampClass = centeredTitleMaxLines === 2 ? 'line-clamp-2' : 'line-clamp-3';
+  const centeredTitleMaxWidthClass = isDiamondShape
+    ? 'max-w-[62%]'
+    : isCompactRoundShape
+      ? 'max-w-[86%]'
+      : 'max-w-[78%]';
   const iconNode =
     node.type === EntityType.END_POINT && node.endPointType
       ? ENDPOINT_ICONS[node.endPointType as EndPointType]
@@ -404,6 +414,7 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
             <span style={{ transform: `scale(${clamp(iconScale * 0.92, 0.8, 1.08)})` }}>{iconNode}</span>
           </div>
           <span
+            data-testid={`node-title-${node.id}`}
             className="truncate font-medium text-slate-700 dark:text-slate-200"
             style={{ fontSize: `${compactTitleFontSize}px`, lineHeight: 1.25 }}
           >
@@ -422,10 +433,9 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
           ) : null}
 
           <div
-            className={`font-semibold tracking-[0.02em] text-slate-800 dark:text-slate-100 ${
-              isDiamondShape ? 'line-clamp-2 max-w-[62%]' : 'line-clamp-3 max-w-[78%]'
-            }`}
+            className={`break-words font-semibold tracking-[0.02em] text-slate-800 dark:text-slate-100 ${centeredTitleClampClass} ${centeredTitleMaxWidthClass}`}
             style={{ fontSize: `${centeredTitleFontSize}px`, lineHeight: 1.18 }}
+            data-testid={`node-title-${node.id}`}
           >
             {headerTitle}
           </div>
@@ -469,6 +479,7 @@ const DiagramNodeCardComponent: React.FC<DiagramNodeCardProps> = ({
               <div
                 className="truncate pt-0.5 font-semibold text-slate-800 dark:text-slate-100"
                 style={{ fontSize: `${titleFontSize}px`, lineHeight: 1.2 }}
+                data-testid={`node-title-${node.id}`}
               >
                 {headerTitle}
               </div>

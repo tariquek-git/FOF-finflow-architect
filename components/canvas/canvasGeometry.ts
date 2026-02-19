@@ -93,7 +93,7 @@ export const getNodeDimensions = (node: Node) => {
       : shape === NodeShape.SQUARE
         ? 92
         : shape === NodeShape.DIAMOND
-          ? 108
+          ? 124
           : shape === NodeShape.PILL
             ? 212
             : shape === NodeShape.ROUNDED_RECTANGLE
@@ -107,7 +107,7 @@ export const getNodeDimensions = (node: Node) => {
       : shape === NodeShape.SQUARE
         ? 92
         : shape === NodeShape.DIAMOND
-          ? 108
+          ? 124
           : shape === NodeShape.PILL
             ? 64
             : shape === NodeShape.ROUNDED_RECTANGLE
