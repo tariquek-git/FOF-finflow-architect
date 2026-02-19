@@ -1,0 +1,98 @@
+{
+  "version": 4,
+  "name": "Card Settlement Example",
+  "diagram": {
+    "schemaVersion": 2,
+    "nodes": [
+      {
+        "id": "n-sponsor",
+        "type": "Sponsor Bank",
+        "label": "Sponsor Bank",
+        "shape": "rectangle",
+        "position": { "x": 80, "y": 120 },
+        "data": {
+          "notes": "Settlement account owner. Nets positions T+1.",
+          "accountType": "Settlement"
+        }
+      },
+      {
+        "id": "n-issuer",
+        "type": "Issuing Bank",
+        "label": "Issuer Program",
+        "shape": "rectangle",
+        "position": { "x": 360, "y": 120 },
+        "data": {
+          "notes": "Approves auth and places cardholder hold.",
+          "accountType": "DDA"
+        }
+      },
+      {
+        "id": "n-processor",
+        "type": "Processor",
+        "label": "Processor",
+        "shape": "rectangle",
+        "position": { "x": 640, "y": 120 },
+        "data": {
+          "notes": "Clearing and reconciliation logic.",
+          "accountType": "Ledger"
+        }
+      },
+      {
+        "id": "n-network",
+        "type": "Card Network",
+        "label": "Card Network",
+        "shape": "rectangle",
+        "position": { "x": 920, "y": 120 },
+        "data": {
+          "notes": "Routes auth and clearing between issuer/acquirer."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-auth",
+        "sourceId": "n-network",
+        "targetId": "n-issuer",
+        "sourcePortIdx": 3,
+        "targetPortIdx": 1,
+        "rail": "Card Network",
+        "direction": "Authorization",
+        "label": "Authorization",
+        "timing": "Instant",
+        "isFX": false,
+        "pathType": "bezier",
+        "style": "solid",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": {
+          "notes": "Auth request and response pair."
+        }
+      },
+      {
+        "id": "e-clearing",
+        "sourceId": "n-processor",
+        "targetId": "n-sponsor",
+        "sourcePortIdx": 3,
+        "targetPortIdx": 1,
+        "rail": "ACH",
+        "direction": "Settlement",
+        "label": "Clearing / Settlement",
+        "timing": "Next Day (T+1)",
+        "isFX": false,
+        "pathType": "orthogonal",
+        "style": "solid",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": {
+          "notes": "Net settlement batch to sponsor bank."
+        }
+      }
+    ],
+    "drawings": []
+  },
+  "layout": {
+    "gridMode": "dots",
+    "showPorts": true,
+    "showSwimlanes": false
+  }
+}

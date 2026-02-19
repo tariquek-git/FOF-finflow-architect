@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FinFlow - Flow of Funds Example Pack</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --paper: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #dbe2ea;
+      --accent: #4f46e5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+    .page {
+      max-width: 860px;
+      margin: 24px auto;
+      padding: 28px;
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    .meta { margin: 0 0 22px; color: var(--muted); font-size: 13px; }
+    h2 {
+      margin: 22px 0 8px;
+      font-size: 18px;
+      border-left: 4px solid var(--accent);
+      padding-left: 8px;
+    }
+    h3 { margin: 10px 0 6px; font-size: 14px; color: #1e293b; }
+    ul, ol { margin: 6px 0 10px 22px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    code {
+      background: #eef2ff;
+      border: 1px solid #dbe4ff;
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>FinFlow - Flow of Funds Example Pack</h1>
+    <p class="meta">Date: 2026-02-19</p>
+
+    <h2>Example 1 - Card Program Authorization to Settlement (T+1)</h2>
+    <h3>Participants</h3>
+    <ul>
+      <li>Cardholder</li><li>Issuer Program</li><li>Processor</li><li>Card Network</li><li>Sponsor Bank</li><li>Settlement Account</li>
+    </ul>
+    <h3>Flow</h3>
+    <ol>
+      <li>Cardholder initiates purchase for USD 120.00.</li>
+      <li>Merchant acquirer requests authorization via network.</li>
+      <li>Issuer Program approves and places hold for USD 120.00.</li>
+      <li>Processor records event and prepares clearing file.</li>
+      <li>Network clears transaction end of day.</li>
+      <li>Sponsor Bank settles net funds on T+1 to settlement account.</li>
+    </ol>
+    <h3>Controls</h3>
+    <ul>
+      <li>KYC/KYB passed before card issuance.</li>
+      <li>Velocity and AML rules checked pre-clearing.</li>
+      <li>Daily reconciliation between processor ledger and bank settlement report.</li>
+    </ul>
+
+    <hr />
+
+    <h2>Example 2 - Marketplace Split Payout (Platform + Seller)</h2>
+    <h3>Participants</h3>
+    <ul>
+      <li>Buyer</li><li>Platform Wallet</li><li>Splitter Engine</li><li>Seller FBO Account</li><li>Platform Revenue Account</li><li>Payout Rail (ACH)</li>
+    </ul>
+    <h3>Flow</h3>
+    <ol>
+      <li>Buyer pays USD 250.00 to platform checkout.</li>
+      <li>Funds land in platform wallet.</li>
+      <li>Splitter applies configured rule: Seller share 92% (USD 230.00), Platform fee 8% (USD 20.00).</li>
+      <li>Seller share routed to Seller FBO Account.</li>
+      <li>Platform fee routed to Platform Revenue Account.</li>
+      <li>ACH payout batch submitted at cutoff time.</li>
+    </ol>
+    <h3>Controls</h3>
+    <ul>
+      <li>Split rules versioned and approval-gated.</li>
+      <li>Negative balance prevention on seller account.</li>
+      <li>Payout retries with idempotency key.</li>
+    </ul>
+
+    <hr />
+
+    <h2>Example 3 - Cross-Border Remittance (USD to MXN)</h2>
+    <h3>Participants</h3>
+    <ul>
+      <li>Sender</li><li>US Funding Account</li><li>FX Engine</li><li>Compliance (KYC + Sanctions)</li><li>Correspondent Bank</li><li>Recipient Bank Account (MXN)</li>
+    </ul>
+    <h3>Flow</h3>
+    <ol>
+      <li>Sender funds USD 500.00 from US account.</li>
+      <li>Compliance checks transaction and sender profile.</li>
+      <li>FX Engine quotes USD/MXN and locks rate.</li>
+      <li>Net amount after fee converted to MXN.</li>
+      <li>Correspondent bank receives payment instruction.</li>
+      <li>Recipient account credited in MXN.</li>
+      <li>Confirmation webhook sent to sender app.</li>
+    </ol>
+    <h3>Controls</h3>
+    <ul>
+      <li>Sanctions screening before FX lock.</li>
+      <li>Quote expiry and slippage guardrails.</li>
+      <li>End-to-end trace ID across rails and webhook.</li>
+    </ul>
+
+    <hr />
+
+    <h2>Suggested JSON Fields for FinFlow Nodes</h2>
+    <ul>
+      <li><code>name</code></li><li><code>type</code></li><li><code>notes</code></li><li><code>accountType</code></li>
+      <li><code>custodyModel</code></li><li><code>rail</code></li><li><code>stage</code></li><li><code>kycRequired</code></li><li><code>amlMode</code></li>
+    </ul>
+
+    <h2>Suggested JSON Fields for FinFlow Edges</h2>
+    <ul>
+      <li><code>label</code></li><li><code>pathType</code> (<code>bezier</code> or <code>orthogonal</code>)</li>
+      <li><code>rail</code></li><li><code>settlementWindow</code></li><li><code>notes</code></li>
+    </ul>
+  </main>
+</body>
+</html>

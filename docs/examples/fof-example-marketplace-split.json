@@ -1,0 +1,131 @@
+{
+  "version": 4,
+  "name": "Marketplace Split Example",
+  "diagram": {
+    "schemaVersion": 2,
+    "nodes": [
+      {
+        "id": "n-buyer",
+        "type": "End-Point",
+        "label": "Buyer",
+        "shape": "pill",
+        "position": { "x": 70, "y": 180 },
+        "data": { "notes": "Checkout initiator." }
+      },
+      {
+        "id": "n-platform",
+        "type": "Program Manager",
+        "label": "Platform Wallet",
+        "shape": "rectangle",
+        "position": { "x": 320, "y": 180 },
+        "data": { "notes": "Receives gross payment." }
+      },
+      {
+        "id": "n-splitter",
+        "type": "Compliance Gate",
+        "label": "Splitter Engine",
+        "shape": "diamond",
+        "position": { "x": 580, "y": 180 },
+        "data": { "notes": "Applies 92/8 split rule." }
+      },
+      {
+        "id": "n-seller",
+        "type": "End-Point",
+        "label": "Seller FBO",
+        "shape": "rounded-rectangle",
+        "position": { "x": 840, "y": 120 },
+        "data": {
+          "notes": "Seller share destination account.",
+          "accountType": "FBO"
+        }
+      },
+      {
+        "id": "n-platform-fee",
+        "type": "Liquidity Provider",
+        "label": "Platform Revenue",
+        "shape": "rounded-rectangle",
+        "position": { "x": 840, "y": 260 },
+        "data": { "notes": "Platform fee account." }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-buyer-platform",
+        "sourceId": "n-buyer",
+        "targetId": "n-platform",
+        "sourcePortIdx": 1,
+        "targetPortIdx": 3,
+        "rail": "Card Network",
+        "direction": "Push (Credit)",
+        "label": "Gross Payment",
+        "amount": "250.00",
+        "currency": "USD",
+        "isFX": false,
+        "pathType": "bezier",
+        "style": "solid",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": { "notes": "Buyer payment capture." }
+      },
+      {
+        "id": "e-platform-splitter",
+        "sourceId": "n-platform",
+        "targetId": "n-splitter",
+        "sourcePortIdx": 1,
+        "targetPortIdx": 3,
+        "rail": "Internal Ledger",
+        "direction": "Internal",
+        "label": "Split Decision",
+        "isFX": false,
+        "pathType": "bezier",
+        "style": "dashed",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": { "notes": "Rule execution step." }
+      },
+      {
+        "id": "e-seller-share",
+        "sourceId": "n-splitter",
+        "targetId": "n-seller",
+        "sourcePortIdx": 1,
+        "targetPortIdx": 3,
+        "rail": "ACH",
+        "direction": "Push (Credit)",
+        "label": "Seller Share 92%",
+        "amount": "230.00",
+        "currency": "USD",
+        "timing": "Same Day",
+        "isFX": false,
+        "pathType": "orthogonal",
+        "style": "solid",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": { "notes": "Seller payout leg." }
+      },
+      {
+        "id": "e-platform-fee",
+        "sourceId": "n-splitter",
+        "targetId": "n-platform-fee",
+        "sourcePortIdx": 2,
+        "targetPortIdx": 0,
+        "rail": "Internal Ledger",
+        "direction": "Internal",
+        "label": "Platform Fee 8%",
+        "amount": "20.00",
+        "currency": "USD",
+        "isFX": false,
+        "pathType": "orthogonal",
+        "style": "dotted",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": { "notes": "Revenue allocation leg." }
+      }
+    ],
+    "drawings": []
+  },
+  "layout": {
+    "gridMode": "dots",
+    "showPorts": true,
+    "showSwimlanes": false
+  }
+}

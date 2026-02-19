@@ -1,0 +1,51 @@
+--- Page 1 ---
+FinFlow - Flow of Funds Diagram Examples (Auto-ﬁt)
+1) Card Program Authorization to Settlement (T+1)
+Example 1: Card Program Authorization to Settlement (T+1)
+Purchase request Authorization Clearing events Settlement batch
+Cardholder
+Initiates purchase
+Card Network
+Routes auth + clearing
+Issuer Program
+Approves + hold funds
+Processor
+Clearing ﬁle + ledger
+Sponsor Bank
+Net settlement on T+1
+Controls
+KYC/KYB before issuance - AML and velocity checks - Daily reconciliation between processor and sponsor bank reports
+2) Marketplace Split Payout (Platform + Seller)
+Example 2: Marketplace Split Payout (Platform + Seller)
+Payment
+To splitter
+Seller share 92%
+Platform fee 8%
+Buyer
+Pays USD 250 Platform Wallet
+Receives gross funds Splitter Engine
+Apply 92/8 rule
+Seller FBO Account
+USD 230 payout leg
+Platform Revenue
+USD 20 fee leg
+Controls
+Versioned split rules - Negative balance prevention - Idempotent payout retries - ACH cutoff handling
+3) Cross-Border Remittance (USD to MXN)
+
+--- Page 2 ---
+Example 3: Cross-Border Remittance (USD to MXN)
+Funding KYC pass
+SWIFT leg Credit posted
+Sender
+Funds USD 500
+Compliance
+KYC + sanctions pass
+FX Engine
+Quote + lock USD/MXN
+Correspondent Bank
+Receives SWIFT instruction
+Recipient Account
+Credits MXN funds
+Controls
+Sanctions screening before FX lock - Quote expiry and slippage limits - End-to-end trace ID and webhook conﬁrmation

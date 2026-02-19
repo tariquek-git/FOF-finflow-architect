@@ -1,0 +1,127 @@
+{
+  "version": 4,
+  "name": "Cross-Border Remittance Example",
+  "diagram": {
+    "schemaVersion": 2,
+    "nodes": [
+      {
+        "id": "n-sender",
+        "type": "End-Point",
+        "label": "Sender",
+        "shape": "pill",
+        "position": { "x": 60, "y": 160 },
+        "data": { "notes": "Originating customer." }
+      },
+      {
+        "id": "n-compliance",
+        "type": "Compliance Gate",
+        "label": "KYC + Sanctions",
+        "shape": "diamond",
+        "position": { "x": 320, "y": 160 },
+        "data": { "notes": "Transaction screening and policy checks." }
+      },
+      {
+        "id": "n-fx",
+        "type": "Processor",
+        "label": "FX Engine",
+        "shape": "rounded-rectangle",
+        "position": { "x": 580, "y": 160 },
+        "data": { "notes": "Quote USD/MXN and lock rate." }
+      },
+      {
+        "id": "n-correspondent",
+        "type": "Correspondent Bank",
+        "label": "Correspondent Bank",
+        "shape": "rectangle",
+        "position": { "x": 840, "y": 160 },
+        "data": { "notes": "Cross-border settlement participant." }
+      },
+      {
+        "id": "n-recipient",
+        "type": "End-Point",
+        "label": "Recipient (MXN)",
+        "shape": "rounded-rectangle",
+        "position": { "x": 1100, "y": 160 },
+        "data": { "notes": "Beneficiary account credit." }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-funding",
+        "sourceId": "n-sender",
+        "targetId": "n-compliance",
+        "sourcePortIdx": 1,
+        "targetPortIdx": 3,
+        "rail": "Bank Transfer",
+        "direction": "Push (Credit)",
+        "label": "Funding",
+        "amount": "500.00",
+        "currency": "USD",
+        "isFX": false,
+        "pathType": "bezier",
+        "style": "solid",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": { "notes": "Initial funding instruction." }
+      },
+      {
+        "id": "e-quote",
+        "sourceId": "n-compliance",
+        "targetId": "n-fx",
+        "sourcePortIdx": 1,
+        "targetPortIdx": 3,
+        "rail": "Internal Ledger",
+        "direction": "Internal",
+        "label": "Approved for FX",
+        "isFX": false,
+        "pathType": "bezier",
+        "style": "dashed",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": { "notes": "Compliance pass signal." }
+      },
+      {
+        "id": "e-remit",
+        "sourceId": "n-fx",
+        "targetId": "n-correspondent",
+        "sourcePortIdx": 1,
+        "targetPortIdx": 3,
+        "rail": "SWIFT",
+        "direction": "Settlement",
+        "label": "Cross-border instruction",
+        "currency": "MXN",
+        "timing": "Same Day",
+        "isFX": true,
+        "fxPair": "USD/MXN",
+        "pathType": "orthogonal",
+        "style": "solid",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": { "notes": "Post-conversion transfer leg." }
+      },
+      {
+        "id": "e-credit",
+        "sourceId": "n-correspondent",
+        "targetId": "n-recipient",
+        "sourcePortIdx": 1,
+        "targetPortIdx": 3,
+        "rail": "Other",
+        "direction": "Push (Credit)",
+        "label": "Recipient Credit",
+        "currency": "MXN",
+        "isFX": false,
+        "pathType": "bezier",
+        "style": "solid",
+        "showArrowHead": true,
+        "thickness": 2,
+        "data": { "notes": "Beneficiary account credit confirmation." }
+      }
+    ],
+    "drawings": []
+  },
+  "layout": {
+    "gridMode": "dots",
+    "showPorts": true,
+    "showSwimlanes": false
+  }
+}

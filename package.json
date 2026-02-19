@@ -25,6 +25,10 @@
     "test:soak:mouse": "playwright test e2e/mouse-interactions.spec.ts --repeat-each=30 --workers=1",
     "test:soak:edge": "playwright test e2e/edge-reconnect.spec.ts --repeat-each=20 --workers=1",
     "test:soak:minimal": "playwright test e2e/mvp-interactions-minimal.spec.ts --repeat-each=20 --workers=1",
+    "examples:autofit": "node scripts/auto-fit-diagrams.mjs --preset=branch",
+    "examples:autofit:pipeline": "node scripts/auto-fit-diagrams.mjs --preset=pipeline",
+    "examples:autofit:branch": "node scripts/auto-fit-diagrams.mjs --preset=branch",
+    "examples:autofit:compact": "node scripts/auto-fit-diagrams.mjs --preset=compact",
     "test:qa": "playwright test",
     "test:smoke:headed": "playwright test --headed",
     "test:smoke:install": "playwright install chromium"
