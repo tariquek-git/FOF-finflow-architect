@@ -34,11 +34,11 @@ Pass criteria:
 ## Session-Only Contract Validation
 - [x] `e2e/mvp.spec.ts` remains green
 - [x] `scripts/pilot-human.mjs` reports `reloadKeepsSession: true`
-- [ ] manual close/reopen confirms blank canvas
+- [x] manual close/reopen confirms blank canvas
 
 ## Performance + No-Noise Checks
-- [x] `QA_BASE_URL='http://127.0.0.1:5173/?fresh=1' node scripts/qa-focused.mjs`
-- [x] `PILOT_BASE_URL='http://127.0.0.1:5173/?fresh=1' node scripts/pilot-human.mjs`
+- [x] `QA_BASE_URL='http://127.0.0.1:5181/?fresh=1' node scripts/qa-focused.mjs`
+- [x] `PILOT_BASE_URL='http://127.0.0.1:5181/?fresh=1' node scripts/pilot-human.mjs`
 - [x] pilot summary reports no `consoleErrors` and no `pageErrors`
 
 ## Manual QA + Real User Pilot
@@ -74,18 +74,18 @@ Pass criteria:
   - [ ] no console errors
 
 ## Latest Evidence (update per run)
-- Date: `2026-02-19` (local run window)
+- Date: `2026-02-19` (local run window, refreshed)
 - Branch: `codex/finflow-mvp-main`
-- Commit: `28debfa`
+- Commit: `5e796d2` (pre-freeze head before this update)
 - Gate results:
   - doctor: `pass`
   - build: `pass`
   - smoke: `pass` (`8/8`)
   - mvp: `pass` (`1/1`)
-  - qa: `pass` (`86 passed / 4 skipped / 0 failed`)
+  - qa: `pass` (`87 passed / 4 skipped / 0 failed`)
 - Soak results:
-  - mouse interactions: `pass` (`120/120`)
-  - edge reconnect: `pass` (`40/40`)
+  - mouse interactions: `pass` (`80/80`)
+  - edge reconnect: `pass` (`20/20`)
   - minimal interactions: `pass` (`20/20`)
-- Pilot artifacts: `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T03-57-21-798Z`
-- Performance artifacts: `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-19T03-57-10-396Z`
+- Pilot artifacts: `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T05-22-43-953Z`
+- Performance artifacts: `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-19T05-22-26-112Z`

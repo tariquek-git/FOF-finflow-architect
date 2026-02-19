@@ -1,5 +1,43 @@
 # Local Release Handoff (v0.2.4)
 
+## Update (2026-02-19: Stability Soaks + Shape Text Fit Freeze)
+- Branch under work: `codex/finflow-mvp-main`
+- Scope: reliability soaks, session-only contract recheck, constrained-shape text-fit hardening, beta checklist refresh.
+
+### Changes Applied
+1. Node text-fit hardening for constrained shapes in:
+   - `/Users/tarique/Documents/banking-diagram-mvp/components/canvas/DiagramNodeCard.tsx`
+   - Centered title sizing/clamping now adapts for `diamond`, `circle`, and `square` to avoid 3-line overflow.
+2. Added reproducible visual-pass script:
+   - `/Users/tarique/Documents/banking-diagram-mvp/scripts/shape-text-visual-pass.mjs`
+   - Output report: `/Users/tarique/Documents/banking-diagram-mvp/docs/ui-baseline/after-modern/node-text-fit-report.json`
+3. Launch evidence/doc refresh:
+   - `/Users/tarique/Documents/banking-diagram-mvp/docs/LAUNCH_CHECKLIST.md`
+
+### Gate Evidence (2026-02-19 refresh)
+All commands passed with exit code `0`:
+1. `npm run doctor`
+2. `npm run build`
+3. `PW_REUSE_SERVER=1 PW_PORT=5181 npm run test:smoke` (`8/8`)
+4. `PW_REUSE_SERVER=1 PW_PORT=5181 npm run test:mvp` (`1/1`)
+5. `PW_REUSE_SERVER=1 PW_PORT=5181 npm run test:qa` (`87 passed / 4 skipped / 0 failed`)
+6. `PW_REUSE_SERVER=1 PW_PORT=5181 npx playwright test e2e/mouse-interactions.spec.ts --repeat-each=20 --workers=1` (`80/80`)
+7. `PW_REUSE_SERVER=1 PW_PORT=5181 npx playwright test e2e/edge-reconnect.spec.ts --repeat-each=10 --workers=1` (`20/20`)
+8. `PW_REUSE_SERVER=1 PW_PORT=5181 npx playwright test e2e/mvp-interactions-minimal.spec.ts --repeat-each=20 --workers=1` (`20/20`)
+9. `QA_BASE_URL='http://127.0.0.1:5181/?fresh=1' node scripts/qa-focused.mjs`
+10. `PILOT_BASE_URL='http://127.0.0.1:5181/?fresh=1' node scripts/pilot-human.mjs`
+11. `npm audit --omit=dev --audit-level=high` (0 vulnerabilities)
+12. Session-close validation (browser context restart) confirms blank-on-reopen:
+    - result: `{ "closeReopenBlank": true }`
+
+### Artifacts
+1. Focused QA/performance:
+   - `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-19T05-22-26-112Z`
+2. Pilot run:
+   - `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T05-22-43-953Z`
+3. Shape text-fit evidence:
+   - `/Users/tarique/Documents/banking-diagram-mvp/docs/ui-baseline/after-modern/node-text-fit-report.json`
+
 ## Update (2026-02-19: Beta Readiness Hardening Pass)
 - Branch under work: `codex/finflow-mvp-main`
 - Scope: beta gate execution, soak verification, security cleanup, docs/CI alignment.

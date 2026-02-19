@@ -1,0 +1,232 @@
+{
+  "baseUrl": "http://127.0.0.1:5181/?fresh=1",
+  "timestamp": "2026-02-19T05:05:16.654Z",
+  "nodeId": "starter-sponsor",
+  "cases": [
+    {
+      "shape": "diamond",
+      "zoom": 75,
+      "screenshot": "docs/ui-baseline/after-modern/node-text-fit-diamond-75.png",
+      "ok": true,
+      "insideNode": true,
+      "noHorizontalOverflow": true,
+      "node": {
+        "width": 93.92999267578125,
+        "height": 93.92996215820312
+      },
+      "title": {
+        "width": 46.01812744140625,
+        "height": 15.71807861328125
+      },
+      "detail": {
+        "scrollWidth": 61,
+        "clientWidth": 61,
+        "scrollHeight": 42,
+        "clientHeight": 21,
+        "lineHeight": 10.384,
+        "lineCount": 2,
+        "text": "Compliance Gate Risk Controls and Policy Checks"
+      }
+    },
+    {
+      "shape": "diamond",
+      "zoom": 100,
+      "screenshot": "docs/ui-baseline/after-modern/node-text-fit-diamond-100.png",
+      "ok": true,
+      "insideNode": true,
+      "noHorizontalOverflow": true,
+      "node": {
+        "width": 125.239990234375,
+        "height": 125.239990234375
+      },
+      "title": {
+        "width": 61.3575439453125,
+        "height": 20.95751953125
+      },
+      "detail": {
+        "scrollWidth": 61,
+        "clientWidth": 61,
+        "scrollHeight": 42,
+        "clientHeight": 21,
+        "lineHeight": 10.384,
+        "lineCount": 2,
+        "text": "Compliance Gate Risk Controls and Policy Checks"
+      }
+    },
+    {
+      "shape": "diamond",
+      "zoom": 150,
+      "screenshot": "docs/ui-baseline/after-modern/node-text-fit-diamond-150.png",
+      "ok": true,
+      "insideNode": true,
+      "noHorizontalOverflow": true,
+      "node": {
+        "width": 187.8599853515625,
+        "height": 187.8599853515625
+      },
+      "title": {
+        "width": 92.03631591796875,
+        "height": 31.43621826171875
+      },
+      "detail": {
+        "scrollWidth": 61,
+        "clientWidth": 61,
+        "scrollHeight": 42,
+        "clientHeight": 21,
+        "lineHeight": 10.384,
+        "lineCount": 2,
+        "text": "Compliance Gate Risk Controls and Policy Checks"
+      }
+    },
+    {
+      "shape": "circle",
+      "zoom": 75,
+      "screenshot": "docs/ui-baseline/after-modern/node-text-fit-circle-75.png",
+      "ok": true,
+      "insideNode": true,
+      "noHorizontalOverflow": true,
+      "node": {
+        "width": 93.92999267578125,
+        "height": 93.92996215820312
+      },
+      "title": {
+        "width": 46.01812744140625,
+        "height": 15.71807861328125
+      },
+      "detail": {
+        "scrollWidth": 61,
+        "clientWidth": 61,
+        "scrollHeight": 42,
+        "clientHeight": 21,
+        "lineHeight": 10.384,
+        "lineCount": 2,
+        "text": "Compliance Gate Risk Controls and Policy Checks"
+      }
+    },
+    {
+      "shape": "circle",
+      "zoom": 100,
+      "screenshot": "docs/ui-baseline/after-modern/node-text-fit-circle-100.png",
+      "ok": true,
+      "insideNode": true,
+      "noHorizontalOverflow": true,
+      "node": {
+        "width": 125.239990234375,
+        "height": 125.239990234375
+      },
+      "title": {
+        "width": 61.3575439453125,
+        "height": 20.95751953125
+      },
+      "detail": {
+        "scrollWidth": 61,
+        "clientWidth": 61,
+        "scrollHeight": 42,
+        "clientHeight": 21,
+        "lineHeight": 10.384,
+        "lineCount": 2,
+        "text": "Compliance Gate Risk Controls and Policy Checks"
+      }
+    },
+    {
+      "shape": "circle",
+      "zoom": 150,
+      "screenshot": "docs/ui-baseline/after-modern/node-text-fit-circle-150.png",
+      "ok": true,
+      "insideNode": true,
+      "noHorizontalOverflow": true,
+      "node": {
+        "width": 187.8599853515625,
+        "height": 187.8599853515625
+      },
+      "title": {
+        "width": 92.03631591796875,
+        "height": 31.43621826171875
+      },
+      "detail": {
+        "scrollWidth": 61,
+        "clientWidth": 61,
+        "scrollHeight": 42,
+        "clientHeight": 21,
+        "lineHeight": 10.384,
+        "lineCount": 2,
+        "text": "Compliance Gate Risk Controls and Policy Checks"
+      }
+    },
+    {
+      "shape": "square",
+      "zoom": 75,
+      "screenshot": "docs/ui-baseline/after-modern/node-text-fit-square-75.png",
+      "ok": true,
+      "insideNode": true,
+      "noHorizontalOverflow": true,
+      "node": {
+        "width": 69.69000244140625,
+        "height": 69.69003295898438
+      },
+      "title": {
+        "width": 42.98809814453125,
+        "height": 15.00799560546875
+      },
+      "detail": {
+        "scrollWidth": 57,
+        "clientWidth": 57,
+        "scrollHeight": 40,
+        "clientHeight": 20,
+        "lineHeight": 9.912,
+        "lineCount": 2,
+        "text": "Compliance Gate Risk Controls and Policy Checks"
+      }
+    },
+    {
+      "shape": "square",
+      "zoom": 100,
+      "screenshot": "docs/ui-baseline/after-modern/node-text-fit-square-100.png",
+      "ok": true,
+      "insideNode": true,
+      "noHorizontalOverflow": true,
+      "node": {
+        "width": 92.9200439453125,
+        "height": 92.92001342773438
+      },
+      "title": {
+        "width": 57.3175048828125,
+        "height": 20.0106201171875
+      },
+      "detail": {
+        "scrollWidth": 57,
+        "clientWidth": 57,
+        "scrollHeight": 40,
+        "clientHeight": 20,
+        "lineHeight": 9.912,
+        "lineCount": 2,
+        "text": "Compliance Gate Risk Controls and Policy Checks"
+      }
+    },
+    {
+      "shape": "square",
+      "zoom": 150,
+      "screenshot": "docs/ui-baseline/after-modern/node-text-fit-square-150.png",
+      "ok": true,
+      "insideNode": true,
+      "noHorizontalOverflow": true,
+      "node": {
+        "width": 139.38006591796875,
+        "height": 139.38006591796875
+      },
+      "title": {
+        "width": 85.97625732421875,
+        "height": 30.01593017578125
+      },
+      "detail": {
+        "scrollWidth": 57,
+        "clientWidth": 57,
+        "scrollHeight": 40,
+        "clientHeight": 20,
+        "lineHeight": 9.912,
+        "lineCount": 2,
+        "text": "Compliance Gate Risk Controls and Policy Checks"
+      }
+    }
+  ]
+}
