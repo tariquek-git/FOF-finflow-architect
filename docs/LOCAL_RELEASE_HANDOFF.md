@@ -26,8 +26,8 @@ All commands passed with exit code `0`:
 1. Production URL health:
    - `https://fof-finflow-architect.vercel.app` -> `HTTP 200`
 2. Preview accessibility status:
-   - latest preview alias (`https://fof-finflow-architect-keu43hfcq-tariquek-4483s-projects.vercel.app`) -> `HTTP 401`
-   - blocker remains: preview access policy still protected for external testers.
+   - latest preview alias (`https://fof-finflow-architect-keu43hfcq-tariquek-4483s-projects.vercel.app`) -> `HTTP 200`
+   - updated via Vercel API: `ssoProtection` set to `null` for project `fof-finflow-architect`.
 3. Vercel env vars present in Preview + Production:
    - `VITE_ENABLE_AI`
    - `VITE_ENABLE_CLOUD_SYNC`
@@ -49,8 +49,7 @@ Run against `https://fof-finflow-architect.vercel.app` passed:
 - Public RC tag: `v0.3.0-public-rc2`
 - Remaining blockers before `v0.3.0`:
   1. Enable branch protection on hosted `main` requiring `qa`
-  2. Open preview accessibility for pilot users (or whitelist pilot list)
-  3. Run 3-5 real-user pilot sessions and log outcomes
+  2. Run 3-5 real-user pilot sessions and log outcomes
 
 ## Update (2026-02-19: Stability Soaks + Shape Text Fit Freeze)
 - Branch under work: `codex/finflow-mvp-main`

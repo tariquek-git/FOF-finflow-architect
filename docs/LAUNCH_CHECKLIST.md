@@ -72,7 +72,7 @@ Pass criteria:
   - [x] reset blank
   - [x] import restore
   - [x] no console errors
-- [ ] Preview share links are open to external testers (current `*.vercel.app` preview aliases return `401`)
+- [x] Preview share links are open to external testers (`*.vercel.app` preview aliases return `200`)
 
 ## Latest Evidence (update per run)
 - Date: `2026-02-19` (local run window, refreshed)
