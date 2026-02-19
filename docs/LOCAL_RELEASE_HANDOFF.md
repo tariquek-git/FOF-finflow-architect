@@ -38,6 +38,10 @@ All commands passed with exit code `0`:
 3. Shape text-fit evidence:
    - `/Users/tarique/Documents/banking-diagram-mvp/docs/ui-baseline/after-modern/node-text-fit-report.json`
 
+### Freeze Record
+- Freeze commit: `dde236e`
+- Freeze tag: `v0.3.0-rc3`
+
 ## Update (2026-02-19: Beta Readiness Hardening Pass)
 - Branch under work: `codex/finflow-mvp-main`
 - Scope: beta gate execution, soak verification, security cleanup, docs/CI alignment.

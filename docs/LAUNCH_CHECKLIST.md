@@ -56,7 +56,7 @@ Pass criteria:
 ## Hosted CI/Release Policy
 - [ ] Branch protection on hosted `main` requires `qa`
 - [x] RC workflow includes `test:qa` + soak subset (`beta_soak` job on `v*-public-rc*` tags)
-- [ ] Freeze beta branch/tag and record commit in `docs/LOCAL_RELEASE_HANDOFF.md`
+- [x] Freeze beta branch/tag and record commit in `docs/LOCAL_RELEASE_HANDOFF.md`
 
 ## Vercel Deploy Readiness
 - [ ] Production branch is `main`
@@ -76,7 +76,7 @@ Pass criteria:
 ## Latest Evidence (update per run)
 - Date: `2026-02-19` (local run window, refreshed)
 - Branch: `codex/finflow-mvp-main`
-- Commit: `5e796d2` (pre-freeze head before this update)
+- Commit: `dde236e`
 - Gate results:
   - doctor: `pass`
   - build: `pass`
@@ -87,5 +87,6 @@ Pass criteria:
   - mouse interactions: `pass` (`80/80`)
   - edge reconnect: `pass` (`20/20`)
   - minimal interactions: `pass` (`20/20`)
+- Freeze tag: `v0.3.0-rc3`
 - Pilot artifacts: `/Users/tarique/Documents/banking-diagram-mvp/output/pilot/2026-02-19T05-22-43-953Z`
 - Performance artifacts: `/Users/tarique/Documents/banking-diagram-mvp/qa-artifacts/2026-02-19T05-22-26-112Z`
